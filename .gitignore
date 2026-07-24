@@ -1,0 +1,7 @@
+/tmp/
+/bin/
+/db/
+*_templ.go
+.env
+.codegraph/
+/main

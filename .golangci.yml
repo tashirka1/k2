@@ -1,0 +1,47 @@
+version: "2"
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - unconvert
+    - forbidigo
+    - bodyclose
+  settings:
+    govet:
+      enable-all: true # Enables all type checks and shadow variable detection
+    gocritic:
+      # Enable strict type checking in gocritic
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+    forbidigo:
+      forbid:
+        - pattern: ^panic\(
+          msg: "forbidden: return an error instead of panic"
+        - pattern: ^reflect\.
+          msg: "forbidden: do not use reflect"
+        - pattern: ^func init\(
+          msg: "forbidden: init() — use explicit initialization instead"
+  exclusions:
+    presets:
+      - comments
+      - std-error-handling
+      - common-false-positives
+      - legacy
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+      - path-except: _test\.go
+        linters:
+          - forbidigo
+run:
+  timeout: 3m
+  build-tags:
+    - fts5
+  issues-exit-code: 1

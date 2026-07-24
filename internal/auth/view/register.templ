@@ -1,0 +1,27 @@
+package view
+
+import "github.com/tashirka1/k2/internal/core/view"
+
+templ RegisterError(err string) {
+	<div>{ err }</div>
+}
+
+templ RegisterForm() {
+	<form hx-post="/auth/register">
+		<input type="email" name="email" placeholder="Email" aria-label="email" required/>
+		<input type="password" name="password" placeholder="Password" aria-label="password" required/>
+		<button>Register</button>
+		<div id="errors" style="margin-top:5px;color: red"></div>
+	</form>
+}
+
+templ Register(userId int) {
+	@view.Base("K2", userId) {
+		<div class="grid">
+			<article style="margin: auto">
+				<header><strong>Registration</strong></header>
+				@RegisterForm()
+			</article>
+		</div>
+	}
+}
