@@ -5,7 +5,7 @@ K2 is a skeleton project with only an auth module, hardcoded config, and no moni
 ## What Changes
 
 - **BREAKING**: Replace `internal/auth/` with `internal/admin/` — email/password registration removed, replaced with auto-generated admin credentials (username from 2-3 random words, 16-char password with symbols)
-- **BREAKING**: Switch from `Run()` to cobra CLI — `k2 server` and `k2 credentials` subcommands
+- **BREAKING**: Switch from `Run()` to cobra CLI — `k2` starts the server, `k2 credentials` subcommand
 - **BREAKING**: All env vars prefixed with `K2_` (`K2_PORT`, `K2_ENV_FILE`, `K2_SESSION_KEY`, `K2_DB_NAME`, `K2_EXTERNAL_PORT`)
 - Add admin panel at `/admin/<path_hash>/` with login page and bruteforce protection (3 attempts → 1 min lockout)
 - Add resource monitoring collector (goroutine every 5-10s) — CPU, RAM, disk, all processes, Docker containers via official SDK
@@ -19,7 +19,7 @@ K2 is a skeleton project with only an auth module, hardcoded config, and no moni
 ### New Capabilities
 - `admin-auth`: Admin login with path_hash-protected URL, auto-generated username/password, bruteforce protection, session-based auth, logout
 - `server-monitoring`: Resource metrics collection (CPU, RAM, disk, processes, Docker containers), Chart.js charts, FTS5 search, 7-day retention
-- `cli-tool`: Cobra CLI with `k2 server` and `k2 credentials` subcommands, env var config with K2_ prefix and defaults
+- `cli-tool`: Cobra CLI — `k2` starts the server, `k2 credentials` subcommand, env var config with K2_ prefix and defaults
 - `deployment`: Docker multi-arch image, GitHub Container Registry, compose.yml, systemd service file, installation docs
 
 ### Modified Capabilities
@@ -29,7 +29,7 @@ K2 is a skeleton project with only an auth module, hardcoded config, and no moni
 
 - Replace `internal/auth/` entirely with `internal/admin/`
 - Add `internal/metrics/` module
-- Add `cmd/k2/root.go`, `cmd/k2/server.go`, `cmd/k2/credentials.go`
+- Add `cmd/k2/root.go` (server logic in root command), `cmd/k2/credentials.go`
 - Add `internal/core/config/` for env parsing with defaults
 - New dependencies: cobra, docker SDK client, gopsutil, chart.js
 - New DB tables: `admin_config`, `admin_user`, `metrics_data`, FTS5 virtual tables

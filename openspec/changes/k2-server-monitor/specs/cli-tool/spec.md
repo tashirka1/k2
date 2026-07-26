@@ -1,10 +1,10 @@
 ## ADDED Requirements
 
-### Requirement: k2 server starts the HTTP server
-The `k2 server` command SHALL start the HTTP server with all subsystems.
+### Requirement: k2 starts the HTTP server
+The `k2` command SHALL start the HTTP server with all subsystems (root command).
 
 #### Scenario: Server starts with config from env
-- **WHEN** user runs `k2 server`
+- **WHEN** user runs `k2`
 - **THEN** system reads config from environment variables with `K2_` prefix
 - **THEN** system applies defaults for missing variables
 - **THEN** system initializes database
@@ -15,6 +15,10 @@ The `k2 server` command SHALL start the HTTP server with all subsystems.
 #### Scenario: Server fails on missing required env
 - **WHEN** `K2_SESSION_KEY` is not set
 - **THEN** system prints error and exits with code 1
+
+#### Scenario: Help shows usage
+- **WHEN** user runs `k2 --help`
+- **THEN** system prints usage with `k2` and `k2 credentials` commands
 
 ### Requirement: k2 credentials displays admin credentials
 The `k2 credentials` command SHALL display admin URL, username, and password from the database.

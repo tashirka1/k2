@@ -63,9 +63,9 @@ The admin panel SHALL have a logout button.
 - **WHEN** authenticated user clicks logout
 - **THEN** system clears session
 - **THEN** system redirects to login page
-
 ### Requirement: k2 credentials displays admin info
-The `k2 credentials` command SHALL display admin URL, username, and password.
+
+The `k2 credentials` subcommand SHALL display admin URL, username, and password.
 
 #### Scenario: Credentials displayed
 - **WHEN** user runs `k2 credentials`

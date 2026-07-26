@@ -15,10 +15,9 @@
 
 ## 3. CLI — cobra
 
-- [ ] 3.1 Add cobra dependency and create `cmd/k2/root.go` — root command with `PersistentPreRun` for config loading
-- [ ] 3.2 Create `cmd/k2/server.go` — moves current server setup logic into cobra RunE, injects config, starts collector
-- [ ] 3.3 Create `cmd/k2/credentials.go` — reads from DB directly, prints admin URL/username/password
-- [ ] 3.4 Update `cmd/k2/main.go` — just calls `cmd.Execute()`
+- [ ] 3.1 Add cobra dependency and create `cmd/k2/root.go` — root command with `PersistentPreRun` for config loading; server logic in root's `RunE`
+- [ ] 3.2 Create `cmd/k2/credentials.go` — subcommand, reads from DB directly, prints admin URL/username/password
+- [ ] 3.3 Update `cmd/k2/main.go` — just calls `cmd.Execute()`
 
 ## 4. Metrics Module
 
@@ -34,7 +33,7 @@
 
 ## 5. Wire Everything
 
-- [ ] 5.1 Update `cmd/k2/server.go` — wire config → db → admin → metrics → echo, setup routes with admin group at `/admin/<hash>/`
+- [ ] 5.1 Update `cmd/k2/root.go` — wire config → db → admin → metrics → echo, setup routes with admin group at `/admin/<hash>/`
 - [ ] 5.2 Remove old `internal/auth/` module entirely (all files)
 
 ## 6. Deployment & Docs

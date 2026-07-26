@@ -13,7 +13,7 @@ The project follows flat modular architecture: `internal/core/` (infrastructure)
 
 **Goals:**
 - Replace auth module with admin module (auto-generated credentials, path hash, bruteforce protection)
-- Add cobra CLI with `k2 server` and `k2 credentials` subcommands
+- Add cobra CLI — `k2` starts the server, `k2 credentials` subcommand
 - Add env config with `K2_` prefix and sensible defaults
 - Add system resource monitoring collector (goroutine, 5-10s interval)
 - Add monitoring UI with Chart.js charts and FTS5 search
@@ -30,7 +30,7 @@ The project follows flat modular architecture: `internal/core/` (infrastructure)
 ## Decisions
 
 ### 1. cobra for CLI
-**Why:** Standard in Go ecosystem, supports subcommands naturally (`k2 server`, `k2 credentials`), auto-generates help, bash completion. Replaces the current flat `Run()`.
+**Why:** Standard in Go ecosystem, supports subcommands naturally (`k2`, `k2 credentials`), auto-generates help, bash completion. Root command starts the server. Replaces the current flat `Run()`.
 
 ### 2. Plaintext password in DB, no bcrypt
 **Why:** `k2 credentials` must display the current password. bcrypt is one-way. Writing to separate file adds complexity. The password is auto-generated, single-use-per-deploy, and access to the SQLite file implies full system access already.
@@ -76,4 +76,4 @@ The project follows flat modular architecture: `internal/core/` (infrastructure)
 2. Remove old `auth_user` table in migration
 3. Delete `internal/auth/` module
 4. Implement modules in order: core/config → admin → cli → metrics → docs
-5. Update `cmd/k2/main.go` structure to cobra
+5. Update `cmd/k2/main.go` — root command starts server, credentials subcommand
