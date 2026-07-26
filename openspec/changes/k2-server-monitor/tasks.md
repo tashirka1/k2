@@ -1,7 +1,7 @@
 ## 1. Core Infrastructure
 
 - [ ] 1.1 Add `internal/core/config/` — Config struct with env parsing, `K2_` prefix, defaults for PORT, ENV_FILE, DB_NAME, EXTERNAL_PORT; SESSION_KEY required
-- [ ] 1.2 Create goose migration — create tables `admin_config`, `admin_user`, `metrics_data`, `metrics_fts` virtual table; drop `auth_user`
+- [ ] 1.2 Write goose migration in `migrations/20260724193038_create_tables.sql` — create tables `admin_config`, `admin_user`, `metrics_resource`, `metrics_process`, `metrics_container`, FTS5 virtual tables `metrics_resource_fts`, `metrics_process_fts`, `metrics_container_fts`; drop `auth_user`
 - [ ] 1.3 Update `cmd/k2/main.go` to use new config package with godotenv from `K2_ENV_FILE`
 
 ## 2. Admin Module — Data Layer
@@ -19,13 +19,14 @@
 
 ## 4. Metrics Module
 
-- [ ] 4.1 Create `internal/metrics/model/` — `MetricPoint` struct (timestamp, category, name, value, unit), `ProcessInfo` (pid, name, cpu, ram), `ContainerInfo` (name, image, cpu, ram)
-- [ ] 4.2 Create `internal/metrics/storage/` — `MetricsStorage` interface + SQL: `InsertBatch([]MetricPoint)`, `QueryRange(category, from, to)`, `PurgeOlderThan(time)`, `RebuildFTS(processes, containers)`, `SearchFTS(query)`, `GetLastProcessSnapshot()`, `GetLastContainerSnapshot()`
+- [ ] 4.1 Create `internal/metrics/model/` — `ResourcePoint` (timestamp, type, name, device, value), `ProcessPoint` (timestamp, pid, name, cpu, ram), `ContainerPoint` (timestamp, name, image, cpu, ram)
+- [ ] 4.2a Create `internal/metrics/storage/` — `MetricsStorage` interface + SQL: `InsertResourceBatch([]ResourcePoint)`, `InsertProcessBatch([]ProcessPoint)`, `InsertContainerBatch([]ContainerPoint)`, `QueryResources(type, from, to)`, `QueryProcesses(from, to)`, `QueryContainers(from, to)`, `PurgeOlderThan(age)`, `RebuildResourceFTS(snapshot)`, `RebuildProcessFTS(snapshot)`, `RebuildContainerFTS(snapshot)`, `SearchResourceFTS(query)`, `SearchProcessFTS(query)`, `SearchContainerFTS(query)`
+- [ ] 4.2b Create indexes: `idx_resource_ts`, `idx_process_ts`, `idx_container_ts` on respective `timestamp` columns
 - [ ] 4.3 Create `internal/metrics/service/` — `MetricsService` interface + struct: `RunCollector(ctx, interval)` goroutine with ticker, delegates to system/process/docker collectors
-- [ ] 4.4 Implement system collector — CPU percent, RAM used/total/percent, disk used/total/percent via gopsutil
-- [ ] 4.5 Implement process collector — list all PIDs with name, CPU%, RAM% via gopsutil
-- [ ] 4.6 Implement Docker collector — list all containers with stats via Docker SDK; graceful degradation if socket unavailable
-- [ ] 4.7 Create `internal/metrics/handler/` — Echo handlers for dashboard page, processes page, containers page, search endpoint, chart data JSON endpoints (aggregated by period)
+- [ ] 4.4 Implement system collector — CPU percent, RAM used/total/percent/available, disk used/total/percent/available per mount point via gopsutil
+- [ ] 4.5 Implement process collector — list all PIDs with name, CPU%, RAM% via gopsutil, one row per process
+- [ ] 4.6 Implement Docker collector — list all containers with stats via Docker SDK; graceful degradation if socket unavailable, one row per container
+- [ ] 4.7 Create `internal/metrics/handler/` — Echo handlers for dashboard page, processes page, containers page, search endpoints (resource, process, container), chart data JSON endpoints (aggregated by period)
 - [ ] 4.8 Create `internal/metrics/view/` — templ components: dashboard layout, CPU chart, RAM chart, disk chart, process table with FTS5 search, container table with FTS5 search
 - [ ] 4.9 Add Chart.js to static assets — `static/js/chart.umd.min.js`, wire into admin view templates
 

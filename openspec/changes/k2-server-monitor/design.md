@@ -40,8 +40,12 @@ The project follows flat modular architecture: `internal/core/` (infrastructure)
 **Why:** Single binary deployment (no separate agent process). Simpler: one `go run`, one process to monitor, one DB connection. The collector runs as background goroutine with its own ticker.
 **Risk:** Heavy `procfs` scans on every tick. Mitigation: scan duration is measured and logged; if scan takes longer than interval, next tick is skipped.
 
-### 4. SQLite for metrics storage
-**Why:** The project already uses SQLite. No need for a separate time-series DB. WAL mode handles concurrent writes (collector) and reads (UI). 7-day retention keeps DB bounded (~3M rows/week ≈ 300MB).
+### 4. SQLite for metrics storage with three separate tables
+**Why:** The project already uses SQLite. No need for a separate time-series DB. Metrics are split into three tables by domain:
+- `metrics_resource` — scalar CPU, RAM, disk measurements (7 rows/tick, with `device` column for mount points)
+- `metrics_process` — per-process CPU+RAM in one row (200-500 rows/tick)
+- `metrics_container` — per-container CPU+RAM in one row (5-20 rows/tick)
+This avoids a single EAV table where one process would need two rows (CPU + RAM) and avoids nullable spare columns like `value_int` and `extra`. Total ~220-530 rows/tick vs ~500-1100 in a unified schema. Retention is per-table via `timestamp` index (~1.3M rows/week ≈ 130MB).
 **Risk:** Write contention at scale. Mitigation: 64-connection pool, WAL mode, batch inserts inside transactions, separate collector DB connection.
 
 ### 5. Chart.js for visualization
@@ -52,10 +56,10 @@ The project follows flat modular architecture: `internal/core/` (infrastructure)
 **Risk:** Docker socket must be mounted into container. Document this requirement.
 
 ### 7. Full process list (not top-N)
-**Why:** Monitoring all processes enables FTS5 search across all names. The data volume per interval is small (~200-500 rows × ~50 bytes each ≈ 25KB per tick).
+**Why:** Monitoring all processes enables FTS5 search across all names. The data volume per interval is small (~200-500 rows × ~30 bytes each ≈ 15KB per tick).
 
-### 8. FTS5 on latest snapshot only
-**Why:** Rebuilding FTS index every 5-10s on the full dataset is expensive. Instead, maintain a separate FTS table that is repopulated from the latest metrics snapshot on each tick.
+### 8. FTS5 on latest snapshot only, one index per type
+**Why:** Rebuilding FTS index every 5-10s on the full dataset is expensive. Instead, maintain three separate FTS tables (`metrics_resource_fts`, `metrics_process_fts`, `metrics_container_fts`) that are repopulated from the latest metrics snapshot on each tick. This keeps queries targeted and index rebuilds small.
 
 ### 9. Module naming: `internal/admin/`, `internal/metrics/`
 **Why:** `admin_` prefix matches module name for DB tables. `metrics_` prefix for monitoring tables is short and unambiguous.
@@ -72,8 +76,7 @@ The project follows flat modular architecture: `internal/core/` (infrastructure)
 
 ## Migration Plan
 
-1. Create goose migration with new tables (`admin_config`, `admin_user`, `metrics_data`, FTS5 virtual tables)
-2. Remove old `auth_user` table in migration
-3. Delete `internal/auth/` module
-4. Implement modules in order: core/config → admin → cli → metrics → docs
-5. Update `cmd/k2/main.go` — root command starts server, credentials subcommand
+1. Create goose migration in `migrations/20260724193038_create_tables.sql` — create tables `admin_config`, `admin_user`, `metrics_resource`, `metrics_process`, `metrics_container`, three FTS5 virtual tables (`metrics_resource_fts`, `metrics_process_fts`, `metrics_container_fts`); drop `auth_user`
+2. Delete `internal/auth/` module
+3. Implement modules in order: core/config → admin → cli → metrics → docs
+4. Update `cmd/k2/main.go` — root command starts server, credentials subcommand

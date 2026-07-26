@@ -63,6 +63,10 @@ The admin panel SHALL have a logout button.
 - **WHEN** authenticated user clicks logout
 - **THEN** system clears session
 - **THEN** system redirects to login page
+### Migration: admin tables MUST be written to `migrations/20260724193038_create_tables.sql`
+
+The `admin_config` and `admin_user` tables SHALL be created in the existing migration file `migrations/20260724193038_create_tables.sql` (Up section). The old `auth_user` table SHALL be dropped in the same migration.
+
 ### Requirement: k2 credentials displays admin info
 
 The `k2 credentials` subcommand SHALL display admin URL, username, and password.
