@@ -29,7 +29,7 @@ K2 is a skeleton project with only an auth module, hardcoded config, and no moni
 
 - Replace `internal/auth/` entirely with `internal/admin/`
 - Add `internal/metrics/` module
-- Add `cmd/k2/root.go` (server logic in root command), `cmd/k2/credentials.go`
+- Update `cmd/k2/main.go` — cobra root command (`k2`) starts server, `k2 credentials` subcommand
 - Add `internal/core/config/` for env parsing with defaults
 - New dependencies: cobra, docker SDK client, gopsutil, chart.js
 - New DB tables: `admin_config`, `admin_user`, `metrics_data`, FTS5 virtual tables
