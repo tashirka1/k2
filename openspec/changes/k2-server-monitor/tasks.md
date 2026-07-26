@@ -1,45 +1,45 @@
 ## 1. Core Infrastructure
 
-- [ ] 1.1 Add `internal/core/config/` — Config struct with env parsing, `K2_` prefix, defaults for PORT, ENV_FILE, DB_NAME, EXTERNAL_PORT; SESSION_KEY required
-- [ ] 1.2 Write goose migration in `migrations/20260724193038_create_tables.sql` — create tables `admin_config`, `admin_user`, `metrics_resource`, `metrics_process`, `metrics_container`, FTS5 virtual tables `metrics_resource_fts`, `metrics_process_fts`, `metrics_container_fts`; drop `auth_user`
-- [ ] 1.3 Update `cmd/k2/main.go` to use new config package with godotenv from `K2_ENV_FILE`
+- [x] 1.1 Add `internal/core/config/` — Config struct with env parsing, `K2_` prefix, defaults for PORT, ENV_FILE, DB_NAME, EXTERNAL_PORT; SESSION_KEY required
+- [x] 1.2 Write goose migration in `migrations/20260724193038_create_tables.sql` — create tables `admin_user`, `metrics_resource`, `metrics_process`, `metrics_container`, FTS5 virtual tables `metrics_resource_fts`, `metrics_process_fts`, `metrics_container_fts`; drop `auth_user`
+- [x] 1.3 Update `cmd/k2/main.go` to use new config package with godotenv from `K2_ENV_FILE`
 
 ## 2. Admin Module — Data Layer
 
-- [ ] 2.1 Create `internal/admin/model/` — `AdminConfig` (path_hash, created_at), `AdminUser` (username, password, login_attempts, locked_until), sentinel errors
-- [ ] 2.2 Create `internal/admin/storage/` — `AdminStorage` interface + SQL implementation: `GetConfig()`, `GetUser(username)`, `UpdateAttempts()`, `ResetAttempts()`, `CreateInitialConfig()`
-- [ ] 2.3 Create `internal/admin/service/` — `AdminService` interface + struct: `GenerateCredentials()` (random words, 16-char password), `CheckLogin(username, password, now) error` with bruteforce logic, `GetCredentials()`, `GetConfig()`
-- [ ] 2.4 Write `internal/admin/service/` tests — table-driven: login success, wrong password, lockout after 3 attempts, lockout expires, credentials display, first-start generation
-- [ ] 2.5 Create `internal/admin/handler/` — Echo handlers for login page, login POST, logout, dashboard placeholder
-- [ ] 2.6 Create `internal/admin/view/` — `.templ` components for login form, dashboard layout (mobile-first with PicoCSS), admin base layout with logout button
+- [x] 2.1 Create `internal/admin/model/` — `AdminUser` (username, password, login_attempts, locked_until), sentinel errors
+- [x] 2.2 Create `internal/admin/storage/` — `AdminStorage` interface + SQL implementation: `GetUser(username)`, `UpdateAttempts()`, `ResetAttempts()`, `CreateInitialUser()`
+- [x] 2.3 Create `internal/admin/service/` — `AdminService` interface + struct: `EnsureCredentials()` (random words, 16-char password), `CheckLogin(username, password, now) error` with bruteforce logic, `GetCredentials()`
+- [x] 2.4 Write `internal/admin/service/` tests — table-driven: login success, wrong password, lockout after 3 attempts, lockout expires, credentials display, first-start generation
+- [x] 2.5 Create `internal/admin/handler/` — Echo handlers for root `/`, login page, login POST, logout, dashboard
+- [x] 2.6 Create `internal/admin/view/` — `.templ` components for login form, root page, dashboard
 
 ## 3. CLI — cobra
 
-- [ ] 3.1 Add cobra dependency and rewrite `cmd/k2/main.go` — root command (`k2`) starts server with `PersistentPreRun` for config loading; add `k2 credentials` subcommand that reads DB and prints admin URL/username/password
+- [x] 3.1 Add cobra dependency and rewrite `cmd/k2/main.go` — root command (`k2`) starts server with `PersistentPreRun` for config loading; add `k2 credentials` subcommand that reads DB and prints username/password
 
 ## 4. Metrics Module
 
-- [ ] 4.1 Create `internal/metrics/model/` — `ResourcePoint` (timestamp, type, name, device, value), `ProcessPoint` (timestamp, pid, name, cpu, ram), `ContainerPoint` (timestamp, name, image, cpu, ram)
-- [ ] 4.2a Create `internal/metrics/storage/` — `MetricsStorage` interface + SQL: `InsertResourceBatch([]ResourcePoint)`, `InsertProcessBatch([]ProcessPoint)`, `InsertContainerBatch([]ContainerPoint)`, `QueryResources(type, from, to)`, `QueryProcesses(from, to)`, `QueryContainers(from, to)`, `PurgeOlderThan(age)`, `RebuildResourceFTS(snapshot)`, `RebuildProcessFTS(snapshot)`, `RebuildContainerFTS(snapshot)`, `SearchResourceFTS(query)`, `SearchProcessFTS(query)`, `SearchContainerFTS(query)`
-- [ ] 4.2b Create indexes: `idx_resource_ts`, `idx_process_ts`, `idx_container_ts` on respective `timestamp` columns
-- [ ] 4.3 Create `internal/metrics/service/` — `MetricsService` interface + struct: `RunCollector(ctx, interval)` goroutine with ticker, delegates to system/process/docker collectors
-- [ ] 4.4 Implement system collector — CPU percent, RAM used/total/percent/available, disk used/total/percent/available per mount point via gopsutil
-- [ ] 4.5 Implement process collector — list all PIDs with name, CPU%, RAM% via gopsutil, one row per process
-- [ ] 4.6 Implement Docker collector — list all containers with stats via Docker SDK; graceful degradation if socket unavailable, one row per container
-- [ ] 4.7 Create `internal/metrics/handler/` — Echo handlers for dashboard page, processes page, containers page, search endpoints (resource, process, container), chart data JSON endpoints (aggregated by period)
-- [ ] 4.8 Create `internal/metrics/view/` — templ components: dashboard layout, CPU chart, RAM chart, disk chart, process table with FTS5 search, container table with FTS5 search
-- [ ] 4.9 Add Chart.js to static assets — `static/js/chart.umd.min.js`, wire into admin view templates
+- [x] 4.1 Create `internal/metrics/model/` — `ResourcePoint` (timestamp, type, name, device, value), `ProcessPoint` (timestamp, pid, name, cpu, ram), `ContainerPoint` (timestamp, name, image, cpu, ram)
+- [x] 4.2a Create `internal/metrics/storage/` — `MetricsStorage` interface + SQL
+- [x] 4.2b Create indexes on timestamp columns
+- [x] 4.3 Create `internal/metrics/service/` — collector goroutine
+- [x] 4.4 Implement system collector via gopsutil
+- [x] 4.5 Implement process collector via gopsutil
+- [x] 4.6 Implement Docker collector via moby SDK
+- [x] 4.7 Create `internal/metrics/handler/` — Echo handlers under `/metrics/` prefix
+- [x] 4.8 Create `internal/metrics/view/` — templ components
+- [x] 4.9 Add Chart.js to `static/js/`
 
 ## 5. Wire Everything
 
-- [ ] 5.1 Update `cmd/k2/main.go` — wire config → db → admin → metrics → echo, setup routes with admin group at `/admin/<hash>/`
-- [ ] 5.2 Remove old `internal/auth/` module entirely (all files)
+- [x] 5.1 Update `cmd/k2/main.go` — wire config → db → admin → metrics → echo, setup routes with trailing slash support
+- [x] 5.2 Remove old `internal/auth/` module entirely (all files)
 
 ## 6. Deployment & Docs
 
-- [ ] 6.1 Update `Dockerfile` if needed for new dependencies (Docker SDK, CGO)
-- [ ] 6.2 Create GitHub Actions workflow — `.github/workflows/publish.yml` — build multi-arch on tag `v*`, push to ghcr.io
-- [ ] 6.3 Create `docs/installation.md` — wget + systemctl setup
-- [ ] 6.4 Create `docs/docker.md` — make up + compose.yml + K2_EXTERNAL_PORT
-- [ ] 6.5 Create systemd service file — `contrib/k2.service`
-- [ ] 6.6 Update `Makefile` — add targets if needed
+- [x] 6.1 Update `Dockerfile` if needed
+- [x] 6.2 Create GitHub Actions workflow
+- [x] 6.3 Create `docs/installation.md`
+- [x] 6.4 Create `docs/docker.md`
+- [x] 6.5 Create systemd service file
+- [x] 6.6 Update `Makefile`

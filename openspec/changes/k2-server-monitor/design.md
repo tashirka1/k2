@@ -12,11 +12,11 @@ The project follows flat modular architecture: `internal/core/` (infrastructure)
 ## Goals / Non-Goals
 
 **Goals:**
-- Replace auth module with admin module (auto-generated credentials, path hash, bruteforce protection)
+- Replace auth module with admin module (auto-generated credentials, bruteforce protection)
 - Add cobra CLI — `k2` starts the server, `k2 credentials` subcommand
 - Add env config with `K2_` prefix and sensible defaults
 - Add system resource monitoring collector (goroutine, 5-10s interval)
-- Add monitoring UI with Chart.js charts and FTS5 search
+- Add monitoring UI under `/metrics/` with Chart.js charts and FTS5 search
 - Add Docker image publish to ghcr.io and systemd deployment support
 - Add installation documentation
 
@@ -67,16 +67,23 @@ This avoids a single EAV table where one process would need two rows (CPU + RAM)
 ### 10. Separate `internal/core/config/` for env parsing
 **Why:** Config parsing is infrastructure, not business logic — fits `internal/core/` scope. Keeps env logic out of `main.go`.
 
+### 11. Fixed admin routes without path hash
+**Why:** Path hash added unnecessary complexity for a single-user admin panel. Routes are at `/login`, `/dashboard`, `/logout`. Security relies on strong auto-generated password and bruteforce protection instead.
+
+### 12. Echo RedirectTrailingSlash enabled
+**Why:** Both `/login` and `/login/` should work. Echo's built-in `RedirectTrailingSlash` middleware redirects `/login/` to `/login` automatically.
+
 ## Risks / Trade-offs
 
 - **[Security]** Plaintext password in SQLite — if DB file is exposed, credentials are compromised. Mitigation: document file permissions (chmod 600 on DB dir).
+- **[Security]** Admin panel at known URL — no path hash protection. Mitigation: strong auto-generated password (16 chars, all character classes), bruteforce lockout after 3 attempts.
 - **[Performance]** Full process scan every 5-10s may be heavy on large systems (1000+ processes). Mitigation: monitor scan duration, log warnings if approaching interval.
 - **[Portability]** Docker SDK + Docker socket — feature only works when Docker is available. Mitigation: collector gracefully degrades (no container data if socket unavailable).
 - **[Data loss]** 7-day retention means no long-term history. Mitigation: documented limitation; aggregation could be added later.
 
 ## Migration Plan
 
-1. Create goose migration in `migrations/20260724193038_create_tables.sql` — create tables `admin_config`, `admin_user`, `metrics_resource`, `metrics_process`, `metrics_container`, three FTS5 virtual tables (`metrics_resource_fts`, `metrics_process_fts`, `metrics_container_fts`); drop `auth_user`
+1. Create goose migration in `migrations/20260724193038_create_tables.sql` — create tables `admin_user`, `metrics_resource`, `metrics_process`, `metrics_container`, three FTS5 virtual tables (`metrics_resource_fts`, `metrics_process_fts`, `metrics_container_fts`); drop `auth_user`
 2. Delete `internal/auth/` module
 3. Implement modules in order: core/config → admin → cli → metrics → docs
 4. Update `cmd/k2/main.go` — root command starts server, credentials subcommand

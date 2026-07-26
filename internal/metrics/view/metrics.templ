@@ -1,0 +1,52 @@
+package view
+
+import core_view "github.com/tashirka1/k2/internal/core/view"
+
+templ Dashboard() {
+	@core_view.Base("Dashboard", 1) {
+		<article>
+			<header><strong>Resource Monitor</strong></header>
+			<div class="grid">
+				<div>
+					<h3>CPU</h3>
+					<canvas id="cpuChart" width="400" height="200"></canvas>
+				</div>
+				<div>
+					<h3>RAM</h3>
+					<canvas id="ramChart" width="400" height="200"></canvas>
+				</div>
+				<div>
+					<h3>Disk</h3>
+					<canvas id="diskChart" width="400" height="200"></canvas>
+				</div>
+			</div>
+			<nav>
+				<ul>
+					<li><a href="/metrics/dashboard">Dashboard</a></li>
+					<li><a href="/metrics/processes">Processes</a></li>
+					<li><a href="/metrics/containers">Containers</a></li>
+				</ul>
+			</nav>
+		</article>
+	}
+}
+
+templ ProcessesPage() {
+	@core_view.Base("Processes", 1) {
+		<article>
+			<header><strong>Process Monitor</strong></header>
+			<input type="search" name="search" placeholder="Search processes..." hx-get="/metrics/search/process?q=value" hx-target="#process-results" hx-trigger="keyup changed delay:300ms"/>
+			<div id="process-results"></div>
+		</article>
+	}
+}
+
+templ ContainersPage() {
+	@core_view.Base("Containers", 1) {
+		<article>
+			<header><strong>Container Monitor</strong></header>
+			<input type="search" name="search" placeholder="Search containers..." hx-get="/metrics/search/container?q=value" hx-target="#container-results" hx-trigger="keyup changed delay:300ms"/>
+			<div id="container-results"></div>
+		</article>
+	}
+}

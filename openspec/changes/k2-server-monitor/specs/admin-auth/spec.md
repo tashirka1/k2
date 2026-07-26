@@ -1,33 +1,35 @@
 ## ADDED Requirements
 
 ### Requirement: Server generates admin credentials on first start
-When the database is empty (no `admin_config` row), the server SHALL generate admin credentials on startup.
+When the database has no `admin_user` rows, the server SHALL generate admin credentials on startup.
 
 #### Scenario: First start generates credentials
-- **WHEN** server starts and `admin_config` table is empty
-- **THEN** system generates a unique 32+ hex char path hash
+- **WHEN** server starts and `admin_user` table is empty
 - **THEN** system generates a username from 2-3 random English words joined by hyphens
 - **THEN** system generates a 16-character password containing uppercase, lowercase, digits, and special characters
-- **THEN** system inserts a row into `admin_config` with the path hash
 - **THEN** system inserts a row into `admin_user` with the username and plaintext password
-- **THEN** system prints admin URL, username, and password to stdout
+- **THEN** system prints username and password to stdout in a formatted box
 
 #### Scenario: Subsequent starts skip generation
-- **WHEN** server starts and `admin_config` table already has a row
+- **WHEN** server starts and `admin_user` table already has a row
 - **THEN** system uses existing credentials
 
-### Requirement: Admin panel is accessible at /admin/<path_hash>/
-The admin panel SHALL be served at a URL with the generated path hash.
+### Requirement: Admin panel is accessible at /login and /dashboard
+The admin panel SHALL be served at fixed URLs.
 
-#### Scenario: Access with correct hash
-- **WHEN** user navigates to `/admin/<correct_hash>/`
+#### Scenario: Access login page
+- **WHEN** user navigates to `/login` or `/login/`
 - **THEN** system shows login page
-- **WHEN** user navigates to `/admin/<correct_hash>/dashboard`
-- **THEN** system requires authentication or shows login
 
-#### Scenario: Access with incorrect hash returns 404
-- **WHEN** user navigates to `/admin/<wrong_hash>/`
-- **THEN** system returns 404
+#### Scenario: Access dashboard without auth
+- **WHEN** unauthenticated user navigates to `/dashboard`
+- **THEN** system redirects to `/login`
+
+#### Scenario: Root page
+- **WHEN** unauthenticated user navigates to `/`
+- **THEN** system shows links to login page
+- **WHEN** authenticated user navigates to `/`
+- **THEN** system redirects to `/dashboard`
 
 ### Requirement: Login with username and password
 The admin login page SHALL accept username and password.
@@ -35,7 +37,7 @@ The admin login page SHALL accept username and password.
 #### Scenario: Successful login
 - **WHEN** user submits correct username and password
 - **THEN** system creates authenticated session
-- **THEN** system redirects to admin dashboard
+- **THEN** system redirects to dashboard
 - **THEN** system resets `login_attempts` to 0 for that user
 
 #### Scenario: Failed login increments attempts
@@ -63,18 +65,16 @@ The admin panel SHALL have a logout button.
 - **WHEN** authenticated user clicks logout
 - **THEN** system clears session
 - **THEN** system redirects to login page
+
 ### Migration: admin tables MUST be written to `migrations/20260724193038_create_tables.sql`
 
-The `admin_config` and `admin_user` tables SHALL be created in the existing migration file `migrations/20260724193038_create_tables.sql` (Up section). The old `auth_user` table SHALL be dropped in the same migration.
+The `admin_user` table SHALL be created in the existing migration file `migrations/20260724193038_create_tables.sql` (Up section). The old `auth_user` table SHALL be dropped in the same migration.
 
 ### Requirement: k2 credentials displays admin info
 
-The `k2 credentials` subcommand SHALL display admin URL, username, and password.
+The `k2 credentials` subcommand SHALL display admin username and password.
 
 #### Scenario: Credentials displayed
 - **WHEN** user runs `k2 credentials`
-- **THEN** system reads from `admin_config` and `admin_user` tables
-- **THEN** system prints:
-  Admin URL: /admin/<hash>/
-  Username: <username>
-  Password: <password>
+- **THEN** system reads from `admin_user` table
+- **THEN** system prints formatted username and password

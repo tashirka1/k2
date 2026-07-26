@@ -1,0 +1,52 @@
+package view
+
+import core_view "github.com/tashirka1/k2/internal/core/view"
+
+templ Root() {
+	@core_view.Base("K2 Monitor", 0) {
+		<article>
+			<header><strong>K2 Server Monitor</strong></header>
+			<p>Welcome to K2, a server monitoring tool.</p>
+			<a href="/login" role="button">Sign In</a>
+		</article>
+	}
+}
+
+templ Login(userId int) {
+	@core_view.Base("K2 Monitor", userId) {
+		<article>
+			<header><strong>Admin Login</strong></header>
+			<div id="errors"></div>
+			<form hx-post="/login" hx-target="#main" hx-swap="outerHTML">
+				<label>
+					Username
+					<input type="text" name="username" placeholder="admin" required/>
+				</label>
+				<label>
+					Password
+					<input type="password" name="password" placeholder="password" required/>
+				</label>
+				<button type="submit">Sign In</button>
+			</form>
+		</article>
+	}
+}
+
+templ LoginError(message string) {
+	<small style="color: var(--pico-color-red-500)">{ message }</small>
+}
+
+templ Dashboard(userId int) {
+	@core_view.Base("Dashboard", userId) {
+		<article>
+			<header><strong>Dashboard</strong></header>
+			<nav>
+				<ul>
+					<li><a href="/metrics/dashboard">Metrics</a></li>
+					<li><a href="/metrics/processes">Processes</a></li>
+					<li><a href="/metrics/containers">Containers</a></li>
+				</ul>
+			</nav>
+		</article>
+	}
+}

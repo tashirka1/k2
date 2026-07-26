@@ -13,7 +13,7 @@ CREATE TABLE metrics_resource (
     device    TEXT,                -- mount point for disk (e.g. /, /data)
     value     REAL NOT NULL
 );
-CREATE INDEX idx_resource_ts ON metrics_resource(timestamp);
+CREATE INDEX IF NOT EXISTS idx_resource_ts ON metrics_resource(timestamp);
 
 CREATE TABLE metrics_process (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,7 +23,7 @@ CREATE TABLE metrics_process (
     cpu       REAL NOT NULL,
     ram       REAL NOT NULL
 );
-CREATE INDEX idx_process_ts ON metrics_process(timestamp);
+CREATE INDEX IF NOT EXISTS idx_process_ts ON metrics_process(timestamp);
 
 CREATE TABLE metrics_container (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,12 +33,36 @@ CREATE TABLE metrics_container (
     cpu       REAL NOT NULL,
     ram       REAL NOT NULL
 );
-CREATE INDEX idx_container_ts ON metrics_container(timestamp);
+CREATE INDEX IF NOT EXISTS idx_container_ts ON metrics_container(timestamp);
 
 CREATE VIRTUAL TABLE metrics_resource_fts USING fts5(type, name, device, content='');
 CREATE VIRTUAL TABLE metrics_process_fts USING fts5(name, pid, content='');
 CREATE VIRTUAL TABLE metrics_container_fts USING fts5(name, image, content='');
 ```
+
+### Requirement: Metrics routes are under /metrics/ prefix
+
+The monitoring UI SHALL be served at `/metrics/` routes.
+
+#### Scenario: Dashboard at /metrics/dashboard
+- **WHEN** user navigates to `/metrics/dashboard` or `/metrics/dashboard/`
+- **THEN** system renders dashboard with CPU, RAM, Disk charts
+
+#### Scenario: Processes at /metrics/processes
+- **WHEN** user navigates to `/metrics/processes`
+- **THEN** system renders process table with FTS5 search
+
+#### Scenario: Containers at /metrics/containers
+- **WHEN** user navigates to `/metrics/containers`
+- **THEN** system renders container table with FTS5 search
+
+#### Scenario: Chart data at /metrics/chart/:type
+- **WHEN** user requests `/metrics/chart/cpu?period=1h`
+- **THEN** system returns JSON array of resource metric points
+
+#### Scenario: FTS5 search at /metrics/search/:category
+- **WHEN** user requests `/metrics/search/process?q=nginx`
+- **THEN** system returns JSON array of matching results
 
 ### Requirement: System resource collection
 The server SHALL collect system resource metrics every 5-10 seconds.
@@ -104,15 +128,15 @@ The system SHALL support full-text search across resource types, process names, 
 The admin UI SHALL display resource metrics using Chart.js line charts.
 
 #### Scenario: Dashboard shows CPU chart
-- **WHEN** user navigates to admin dashboard
+- **WHEN** user navigates to dashboard
 - **THEN** system renders CPU usage chart from `metrics_resource` where `type='cpu'` for selectable periods (1h, 6h, 24h, 7d)
 
 #### Scenario: Dashboard shows RAM chart
-- **WHEN** user navigates to admin dashboard
+- **WHEN** user navigates to dashboard
 - **THEN** system renders RAM usage area chart from `metrics_resource` where `type='ram'` for selectable periods
 
 #### Scenario: Dashboard shows Disk chart
-- **WHEN** user navigates to admin dashboard
+- **WHEN** user navigates to dashboard
 - **THEN** system renders disk usage gauge and used/total line chart from `metrics_resource` where `type='disk'`
 
 #### Scenario: Processes tab shows top processes
