@@ -42,7 +42,7 @@ func (r *Metrics) InsertResourceBatch(ctx context.Context, points []model.Resour
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	stmt, err := tx.PrepareContext(ctx, "INSERT INTO metrics_resource(timestamp, type, name, device, value) VALUES (?, ?, ?, ?, ?)")
 	if err != nil {
@@ -66,7 +66,7 @@ func (r *Metrics) InsertProcessBatch(ctx context.Context, points []model.Process
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	stmt, err := tx.PrepareContext(ctx, "INSERT INTO metrics_process(timestamp, pid, name, cpu, ram) VALUES (?, ?, ?, ?, ?)")
 	if err != nil {
@@ -90,7 +90,7 @@ func (r *Metrics) InsertContainerBatch(ctx context.Context, points []model.Conta
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	stmt, err := tx.PrepareContext(ctx, "INSERT INTO metrics_container(timestamp, name, image, cpu, ram) VALUES (?, ?, ?, ?, ?)")
 	if err != nil {
@@ -166,7 +166,7 @@ func (r *Metrics) PurgeOlderThan(ctx context.Context, age time.Duration) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	for _, table := range []string{"metrics_resource", "metrics_process", "metrics_container"} {
 		if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE timestamp < ?", table), cutoff); err != nil {
@@ -187,7 +187,7 @@ func (r *Metrics) RebuildResourceFTS(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if _, err := tx.ExecContext(ctx, "DELETE FROM metrics_resource_fts"); err != nil {
 		return err
@@ -219,7 +219,7 @@ func (r *Metrics) RebuildProcessFTS(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if _, err := tx.ExecContext(ctx, "DELETE FROM metrics_process_fts"); err != nil {
 		return err
@@ -251,7 +251,7 @@ func (r *Metrics) RebuildContainerFTS(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if _, err := tx.ExecContext(ctx, "DELETE FROM metrics_container_fts"); err != nil {
 		return err

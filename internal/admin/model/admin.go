@@ -9,10 +9,10 @@ var (
 )
 
 type AdminUser struct {
-	ID            int
 	Username      string
 	Password      string
-	LoginAttempts int
 	LockedUntil   string
 	CreatedAt     string
+	ID            int
+	LoginAttempts int
 }

@@ -12,7 +12,7 @@ import (
 )
 
 func collectContainerMetrics(ctx context.Context, now time.Time) []model.ContainerPoint {
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	cli, err := client.New(client.FromEnv)
 	if err != nil {
 		return nil
 	}

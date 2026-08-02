@@ -10,8 +10,8 @@ type ResourcePoint struct {
 
 type ProcessPoint struct {
 	Timestamp string
-	PID       int
 	Name      string
+	PID       int
 	CPU       float64
 	RAM       float64
 }
