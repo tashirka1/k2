@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"log/slog"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/tashirka1/k2/internal/metrics/model"
@@ -12,9 +14,14 @@ import (
 type MetricsService interface {
 	RunCollector(ctx context.Context, interval time.Duration) error
 	QueryResources(ctx context.Context, metricType string, from, to time.Time) ([]model.ResourcePoint, error)
+	QueryChartData(ctx context.Context, metricType string, from, to time.Time) (model.ChartData, error)
 	QueryProcesses(ctx context.Context, from, to time.Time) ([]model.ProcessPoint, error)
 	QueryContainers(ctx context.Context, from, to time.Time) ([]model.ContainerPoint, error)
-	SearchFTS(ctx context.Context, category string, query string) (interface{}, error)
+	QueryLatestProcesses(ctx context.Context) ([]model.ProcessPoint, error)
+	QueryLatestContainers(ctx context.Context) ([]model.ContainerPoint, error)
+	SearchResourceFTS(ctx context.Context, query string) ([]model.ResourcePoint, error)
+	SearchProcessFTS(ctx context.Context, query string) ([]model.ProcessPoint, error)
+	SearchContainerFTS(ctx context.Context, query string) ([]model.ContainerPoint, error)
 }
 
 type Metrics struct {
@@ -29,6 +36,61 @@ func (s *Metrics) QueryResources(ctx context.Context, metricType string, from, t
 	return s.r.QueryResources(ctx, metricType, from, to)
 }
 
+func (s *Metrics) QueryChartData(ctx context.Context, metricType string, from, to time.Time) (model.ChartData, error) {
+	points, err := s.r.QueryResources(ctx, metricType, from, to)
+	if err != nil {
+		return model.ChartData{}, err
+	}
+	return buildChartData(metricType, points), nil
+}
+
+func buildChartData(metricType string, points []model.ResourcePoint) model.ChartData {
+	values := make(map[string]map[string]float64)
+	timestamps := make(map[string]bool)
+
+	for _, p := range points {
+		if p.Name != "percent" {
+			continue
+		}
+		label := metricType
+		if metricType == "disk" {
+			label = p.Device
+		}
+		if values[label] == nil {
+			values[label] = make(map[string]float64)
+		}
+		values[label][p.Timestamp] = p.Value
+		timestamps[p.Timestamp] = true
+	}
+
+	labels := make([]string, 0, len(timestamps))
+	for ts := range timestamps {
+		labels = append(labels, ts)
+	}
+	sort.Strings(labels)
+
+	names := make([]string, 0, len(values))
+	for name := range values {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	data := model.ChartData{Labels: labels, Series: []model.ChartSeries{}}
+	for _, name := range names {
+		series := make([]*float64, 0, len(labels))
+		for _, ts := range labels {
+			if v, ok := values[name][ts]; ok {
+				val := v
+				series = append(series, &val)
+			} else {
+				series = append(series, nil)
+			}
+		}
+		data.Series = append(data.Series, model.ChartSeries{Label: name, Data: series})
+	}
+	return data
+}
+
 func (s *Metrics) QueryProcesses(ctx context.Context, from, to time.Time) ([]model.ProcessPoint, error) {
 	return s.r.QueryProcesses(ctx, from, to)
 }
@@ -37,17 +99,30 @@ func (s *Metrics) QueryContainers(ctx context.Context, from, to time.Time) ([]mo
 	return s.r.QueryContainers(ctx, from, to)
 }
 
-func (s *Metrics) SearchFTS(ctx context.Context, category string, query string) (interface{}, error) {
-	switch category {
-	case "resource":
-		return s.r.SearchResourceFTS(ctx, query)
-	case "process":
-		return s.r.SearchProcessFTS(ctx, query)
-	case "container":
-		return s.r.SearchContainerFTS(ctx, query)
-	default:
-		return nil, nil
+func (s *Metrics) QueryLatestProcesses(ctx context.Context) ([]model.ProcessPoint, error) {
+	return s.r.QueryLatestProcesses(ctx)
+}
+
+func (s *Metrics) QueryLatestContainers(ctx context.Context) ([]model.ContainerPoint, error) {
+	return s.r.QueryLatestContainers(ctx)
+}
+
+func (s *Metrics) SearchResourceFTS(ctx context.Context, query string) ([]model.ResourcePoint, error) {
+	return s.r.SearchResourceFTS(ctx, query)
+}
+
+func (s *Metrics) SearchProcessFTS(ctx context.Context, query string) ([]model.ProcessPoint, error) {
+	if strings.TrimSpace(query) == "" {
+		return s.r.QueryLatestProcesses(ctx)
 	}
+	return s.r.SearchProcessFTS(ctx, query)
+}
+
+func (s *Metrics) SearchContainerFTS(ctx context.Context, query string) ([]model.ContainerPoint, error) {
+	if strings.TrimSpace(query) == "" {
+		return s.r.QueryLatestContainers(ctx)
+	}
+	return s.r.SearchContainerFTS(ctx, query)
 }
 
 func (s *Metrics) RunCollector(ctx context.Context, interval time.Duration) error {

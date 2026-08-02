@@ -25,11 +25,21 @@ func (h *Metrics) Dashboard(c echo.Context) error {
 }
 
 func (h *Metrics) Processes(c echo.Context) error {
-	return core_view.RenderTemplate(c, view.ProcessesPage())
+	points, err := h.s.QueryLatestProcesses(c.Request().Context())
+	if err != nil {
+		slog.Error("latest processes query failed", "error", err)
+		return c.String(http.StatusInternalServerError, "query failed")
+	}
+	return core_view.RenderTemplate(c, view.ProcessesPage(points))
 }
 
 func (h *Metrics) Containers(c echo.Context) error {
-	return core_view.RenderTemplate(c, view.ContainersPage())
+	points, err := h.s.QueryLatestContainers(c.Request().Context())
+	if err != nil {
+		slog.Error("latest containers query failed", "error", err)
+		return c.String(http.StatusInternalServerError, "query failed")
+	}
+	return core_view.RenderTemplate(c, view.ContainersPage(points))
 }
 
 func parseDuration(s string, defaultVal time.Duration) time.Duration {
@@ -53,7 +63,7 @@ func (h *Metrics) ChartData(c echo.Context) error {
 	from := time.Now().Add(-dur)
 	to := time.Now()
 
-	data, err := h.s.QueryResources(c.Request().Context(), metricType, from, to)
+	data, err := h.s.QueryChartData(c.Request().Context(), metricType, from, to)
 	if err != nil {
 		slog.Error("chart data query failed", "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "query failed"})
@@ -66,13 +76,32 @@ func (h *Metrics) Search(c echo.Context) error {
 	q := c.QueryParam("q")
 	category := c.Param("category")
 
-	results, err := h.s.SearchFTS(c.Request().Context(), category, q)
-	if err != nil {
-		slog.Error("search failed", "error", err)
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "search failed"})
+	ctx := c.Request().Context()
+	switch category {
+	case "process":
+		results, err := h.s.SearchProcessFTS(ctx, q)
+		if err != nil {
+			slog.Error("search failed", "error", err)
+			return c.String(http.StatusInternalServerError, "search failed")
+		}
+		return core_view.RenderTemplate(c, view.ProcessResults(results))
+	case "container":
+		results, err := h.s.SearchContainerFTS(ctx, q)
+		if err != nil {
+			slog.Error("search failed", "error", err)
+			return c.String(http.StatusInternalServerError, "search failed")
+		}
+		return core_view.RenderTemplate(c, view.ContainerResults(results))
+	case "resource":
+		results, err := h.s.SearchResourceFTS(ctx, q)
+		if err != nil {
+			slog.Error("search failed", "error", err)
+			return c.String(http.StatusInternalServerError, "search failed")
+		}
+		return core_view.RenderTemplate(c, view.ResourceResults(results))
+	default:
+		return c.String(http.StatusBadRequest, "unknown category")
 	}
-
-	return c.JSON(http.StatusOK, results)
 }
 
 func SetupHandlers(e *echo.Echo, s service.MetricsService) {

@@ -16,11 +16,14 @@ function initCharts() {
 		fetch(endpoint)
 			.then(function (r) { return r.json(); })
 			.then(function (data) {
+				var datasets = (data.series || []).map(function (s) {
+					return { label: s.label, data: s.data || [] };
+				});
 				new Chart(canvas, {
 					type: 'line',
 					data: {
-						labels: data.map(function (p) { return p.Timestamp; }),
-						datasets: [{ data: data.map(function (p) { return p.Value; }) }]
+						labels: data.labels,
+						datasets: datasets
 					}
 				});
 				delete pendingCharts[canvas.id];

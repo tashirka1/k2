@@ -139,7 +139,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 	collectorCtx, cancelCollector := context.WithCancel(cmd.Context())
 	defer cancelCollector()
 	go func() {
-		if err := metricsSvc.RunCollector(collectorCtx, 10*time.Second); err != nil {
+		if err := metricsSvc.RunCollector(collectorCtx, 5*time.Second); err != nil {
 			slog.Error("collector stopped", "error", err)
 		}
 	}()

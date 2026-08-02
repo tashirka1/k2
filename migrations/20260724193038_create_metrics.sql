@@ -39,11 +39,9 @@ CREATE TABLE IF NOT EXISTS metrics_container (
 );
 CREATE INDEX IF NOT EXISTS idx_container_ts ON metrics_container(timestamp);
 
-CREATE VIRTUAL TABLE IF NOT EXISTS metrics_resource_fts USING fts5(type, name, device, content='');
-CREATE VIRTUAL TABLE IF NOT EXISTS metrics_process_fts USING fts5(name, pid, content='');
-CREATE VIRTUAL TABLE IF NOT EXISTS metrics_container_fts USING fts5(name, image, content='');
-
-DROP TABLE IF EXISTS auth_user;
+CREATE VIRTUAL TABLE IF NOT EXISTS metrics_resource_fts USING fts5(type, name, device);
+CREATE VIRTUAL TABLE IF NOT EXISTS metrics_process_fts USING fts5(name, pid);
+CREATE VIRTUAL TABLE IF NOT EXISTS metrics_container_fts USING fts5(name, image);
 
 -- +goose Down
 
@@ -54,9 +52,3 @@ DROP TABLE IF EXISTS metrics_container;
 DROP TABLE IF EXISTS metrics_resource_fts;
 DROP TABLE IF EXISTS metrics_process_fts;
 DROP TABLE IF EXISTS metrics_container_fts;
-
-CREATE TABLE IF NOT EXISTS auth_user (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL UNIQUE,
-    password TEXT NOT NULL
-);

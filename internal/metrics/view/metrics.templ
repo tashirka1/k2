@@ -1,6 +1,11 @@
 package view
 
-import core_view "github.com/tashirka1/k2/internal/core/view"
+import (
+	"strconv"
+
+	core_view "github.com/tashirka1/k2/internal/core/view"
+	"github.com/tashirka1/k2/internal/metrics/model"
+)
 
 templ Dashboard() {
 	@core_view.Base("Dashboard", 1) {
@@ -24,22 +29,107 @@ templ Dashboard() {
 	}
 }
 
-templ ProcessesPage() {
+templ ProcessesPage(points []model.ProcessPoint) {
 	@core_view.Base("Processes", 1) {
 		<article>
 			<header><strong>Process Monitor</strong></header>
-			<input type="search" name="search" placeholder="Search processes..." hx-get="/metrics/search/process?q=value" hx-target="#process-results" hx-trigger="keyup changed delay:300ms"/>
-			<div id="process-results"></div>
+			<input type="search" name="q" placeholder="Search processes..." hx-get="/metrics/search/process" hx-target="#process-results" hx-trigger="keyup changed delay:300ms"/>
+			<div id="process-results">
+				@ProcessResults(points)
+			</div>
 		</article>
 	}
 }
 
-templ ContainersPage() {
+templ ProcessResults(points []model.ProcessPoint) {
+	if len(points) == 0 {
+		<small>No processes found</small>
+	} else {
+		<table>
+			<thead>
+				<tr>
+					<th>PID</th>
+					<th>Name</th>
+					<th>CPU %</th>
+					<th>RAM %</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, p := range points {
+					<tr>
+						<td>{ p.PID }</td>
+						<td>{ p.Name }</td>
+						<td>{ strconv.FormatFloat(p.CPU, 'f', 1, 64) }</td>
+						<td>{ strconv.FormatFloat(p.RAM, 'f', 1, 64) }</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	}
+}
+
+templ ContainersPage(points []model.ContainerPoint) {
 	@core_view.Base("Containers", 1) {
 		<article>
 			<header><strong>Container Monitor</strong></header>
-			<input type="search" name="search" placeholder="Search containers..." hx-get="/metrics/search/container?q=value" hx-target="#container-results" hx-trigger="keyup changed delay:300ms"/>
-			<div id="container-results"></div>
+			<input type="search" name="q" placeholder="Search containers..." hx-get="/metrics/search/container" hx-target="#container-results" hx-trigger="keyup changed delay:300ms"/>
+			<div id="container-results">
+				@ContainerResults(points)
+			</div>
 		</article>
+	}
+}
+
+templ ContainerResults(points []model.ContainerPoint) {
+	if len(points) == 0 {
+		<small>No containers found</small>
+	} else {
+		<table>
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Image</th>
+					<th>CPU %</th>
+					<th>RAM %</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, p := range points {
+					<tr>
+						<td>{ p.Name }</td>
+						<td>{ p.Image }</td>
+						<td>{ strconv.FormatFloat(p.CPU, 'f', 1, 64) }</td>
+						<td>{ strconv.FormatFloat(p.RAM, 'f', 1, 64) }</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	}
+}
+
+templ ResourceResults(points []model.ResourcePoint) {
+	if len(points) == 0 {
+		<small>No resources found</small>
+	} else {
+		<table>
+			<thead>
+				<tr>
+					<th>Type</th>
+					<th>Name</th>
+					<th>Device</th>
+					<th>Value</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, p := range points {
+					<tr>
+						<td>{ p.Type }</td>
+						<td>{ p.Name }</td>
+						<td>{ p.Device }</td>
+						<td>{ strconv.FormatFloat(p.Value, 'f', 1, 64) }</td>
+					</tr>
+				}
+			</tbody>
+		</table>
 	}
 }

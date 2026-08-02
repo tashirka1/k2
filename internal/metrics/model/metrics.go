@@ -23,3 +23,13 @@ type ContainerPoint struct {
 	CPU       float64
 	RAM       float64
 }
+
+type ChartSeries struct {
+	Label string     `json:"label"`
+	Data  []*float64 `json:"data"`
+}
+
+type ChartData struct {
+	Labels []string      `json:"labels"`
+	Series []ChartSeries `json:"series"`
+}

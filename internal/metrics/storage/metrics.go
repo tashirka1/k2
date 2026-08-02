@@ -4,7 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strconv"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/tashirka1/k2/internal/metrics/model"
@@ -17,6 +18,8 @@ type MetricsStorage interface {
 	QueryResources(ctx context.Context, metricType string, from, to time.Time) ([]model.ResourcePoint, error)
 	QueryProcesses(ctx context.Context, from, to time.Time) ([]model.ProcessPoint, error)
 	QueryContainers(ctx context.Context, from, to time.Time) ([]model.ContainerPoint, error)
+	QueryLatestProcesses(ctx context.Context) ([]model.ProcessPoint, error)
+	QueryLatestContainers(ctx context.Context) ([]model.ContainerPoint, error)
 	PurgeOlderThan(ctx context.Context, age time.Duration) error
 	RebuildResourceFTS(ctx context.Context) error
 	RebuildProcessFTS(ctx context.Context) error
@@ -160,6 +163,42 @@ func (r *Metrics) QueryContainers(ctx context.Context, from, to time.Time) ([]mo
 	return points, rows.Err()
 }
 
+func (r *Metrics) QueryLatestProcesses(ctx context.Context) ([]model.ProcessPoint, error) {
+	rows, err := r.db.QueryContext(ctx, "SELECT timestamp, pid, name, cpu, ram FROM metrics_process WHERE timestamp = (SELECT MAX(timestamp) FROM metrics_process) ORDER BY cpu DESC")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var points []model.ProcessPoint
+	for rows.Next() {
+		var p model.ProcessPoint
+		if err := rows.Scan(&p.Timestamp, &p.PID, &p.Name, &p.CPU, &p.RAM); err != nil {
+			return nil, err
+		}
+		points = append(points, p)
+	}
+	return points, rows.Err()
+}
+
+func (r *Metrics) QueryLatestContainers(ctx context.Context) ([]model.ContainerPoint, error) {
+	rows, err := r.db.QueryContext(ctx, "SELECT timestamp, name, image, cpu, ram FROM metrics_container WHERE timestamp = (SELECT MAX(timestamp) FROM metrics_container) ORDER BY cpu DESC")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var points []model.ContainerPoint
+	for rows.Next() {
+		var p model.ContainerPoint
+		if err := rows.Scan(&p.Timestamp, &p.Name, &p.Image, &p.CPU, &p.RAM); err != nil {
+			return nil, err
+		}
+		points = append(points, p)
+	}
+	return points, rows.Err()
+}
+
 func (r *Metrics) PurgeOlderThan(ctx context.Context, age time.Duration) error {
 	cutoff := time.Now().Add(-age).Format(time.RFC3339)
 	tx, err := r.db.BeginTx(ctx, nil)
@@ -273,7 +312,12 @@ func (r *Metrics) RebuildContainerFTS(ctx context.Context) error {
 }
 
 func (r *Metrics) SearchResourceFTS(ctx context.Context, query string) ([]model.ResourcePoint, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT type, name, device FROM metrics_resource_fts WHERE metrics_resource_fts MATCH ?", query)
+	q := sanitizeFTSQuery(query)
+	rows, err := r.db.QueryContext(ctx, `SELECT r.timestamp, r.type, r.name, r.device, r.value
+		FROM metrics_resource_fts f
+		JOIN metrics_resource r ON r.type = f.type AND r.name = f.name AND COALESCE(r.device, '') = f.device
+		WHERE metrics_resource_fts MATCH ? AND r.timestamp = (SELECT MAX(timestamp) FROM metrics_resource)
+		ORDER BY r.value DESC`, q)
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +326,7 @@ func (r *Metrics) SearchResourceFTS(ctx context.Context, query string) ([]model.
 	var results []model.ResourcePoint
 	for rows.Next() {
 		var p model.ResourcePoint
-		if err := rows.Scan(&p.Type, &p.Name, &p.Device); err != nil {
+		if err := rows.Scan(&p.Timestamp, &p.Type, &p.Name, &p.Device, &p.Value); err != nil {
 			return nil, err
 		}
 		results = append(results, p)
@@ -291,7 +335,12 @@ func (r *Metrics) SearchResourceFTS(ctx context.Context, query string) ([]model.
 }
 
 func (r *Metrics) SearchProcessFTS(ctx context.Context, query string) ([]model.ProcessPoint, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT name, pid FROM metrics_process_fts WHERE metrics_process_fts MATCH ?", query)
+	q := sanitizeFTSQuery(query)
+	rows, err := r.db.QueryContext(ctx, `SELECT p.timestamp, p.pid, p.name, p.cpu, p.ram
+		FROM metrics_process_fts f
+		JOIN metrics_process p ON p.pid = CAST(f.pid AS INTEGER)
+		WHERE metrics_process_fts MATCH ? AND p.timestamp = (SELECT MAX(timestamp) FROM metrics_process)
+		ORDER BY p.cpu DESC`, q)
 	if err != nil {
 		return nil, err
 	}
@@ -300,18 +349,21 @@ func (r *Metrics) SearchProcessFTS(ctx context.Context, query string) ([]model.P
 	var results []model.ProcessPoint
 	for rows.Next() {
 		var p model.ProcessPoint
-		var pidStr string
-		if err := rows.Scan(&p.Name, &pidStr); err != nil {
+		if err := rows.Scan(&p.Timestamp, &p.PID, &p.Name, &p.CPU, &p.RAM); err != nil {
 			return nil, err
 		}
-		p.PID, _ = strconv.Atoi(pidStr)
 		results = append(results, p)
 	}
 	return results, rows.Err()
 }
 
 func (r *Metrics) SearchContainerFTS(ctx context.Context, query string) ([]model.ContainerPoint, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT name, image FROM metrics_container_fts WHERE metrics_container_fts MATCH ?", query)
+	q := sanitizeFTSQuery(query)
+	rows, err := r.db.QueryContext(ctx, `SELECT c.timestamp, c.name, c.image, c.cpu, c.ram
+		FROM metrics_container_fts f
+		JOIN metrics_container c ON c.name = f.name AND c.image = f.image
+		WHERE metrics_container_fts MATCH ? AND c.timestamp = (SELECT MAX(timestamp) FROM metrics_container)
+		ORDER BY c.cpu DESC`, q)
 	if err != nil {
 		return nil, err
 	}
@@ -320,12 +372,22 @@ func (r *Metrics) SearchContainerFTS(ctx context.Context, query string) ([]model
 	var results []model.ContainerPoint
 	for rows.Next() {
 		var p model.ContainerPoint
-		if err := rows.Scan(&p.Name, &p.Image); err != nil {
+		if err := rows.Scan(&p.Timestamp, &p.Name, &p.Image, &p.CPU, &p.RAM); err != nil {
 			return nil, err
 		}
 		results = append(results, p)
 	}
 	return results, rows.Err()
+}
+
+var nonWordChars = regexp.MustCompile(`[^a-zA-Z0-9_\-\s]+`)
+
+func sanitizeFTSQuery(query string) string {
+	q := strings.TrimSpace(nonWordChars.ReplaceAllString(query, " "))
+	if q == "" {
+		return "*"
+	}
+	return q
 }
 
 var _ MetricsStorage = (*Metrics)(nil)
