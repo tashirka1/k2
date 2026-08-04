@@ -17,6 +17,8 @@ K2_SESSION_KEY=your-secret-key
 K2_PORT=8000
 K2_DB_NAME=./data/k2.db
 K2_EXTERNAL_PORT=9000
+K2_USERNAME=admin
+K2_PASSWORD=your-password
 ```
 
 The `K2_EXTERNAL_PORT` controls the host port mapping (default: 9000).

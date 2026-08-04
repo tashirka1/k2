@@ -57,6 +57,7 @@ func collectContainerMetrics(ctx context.Context, now time.Time) []model.Contain
 				Image:     c.Image,
 				CPU:       cpuPercent,
 				RAM:       ramPercent,
+				RAMBytes:  int64(v.MemoryStats.Usage),
 			})
 		}
 	}

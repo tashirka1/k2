@@ -8,25 +8,31 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/tashirka1/k2/internal/admin/model"
-	"github.com/tashirka1/k2/internal/admin/storage"
+	"github.com/tashirka1/k2/internal/auth/model"
+	"github.com/tashirka1/k2/internal/auth/storage"
 )
 
-type AdminService interface {
-	EnsureCredentials(ctx context.Context) (username string, password string, err error)
+type AuthService interface {
+	EnsureCredentials(ctx context.Context, cfgUsername string, cfgPassword string) (username string, password string, err error)
 	CheckLogin(ctx context.Context, username string, password string, now time.Time) (bool, error)
 	GetCredentials(ctx context.Context) (username string, password string, err error)
 }
 
-type Admin struct {
-	r storage.AdminStorage
+type Auth struct {
+	r storage.AuthStorage
 }
 
-func NewAdmin(r storage.AdminStorage) *Admin {
-	return &Admin{r: r}
+func NewAuth(r storage.AuthStorage) *Auth {
+	return &Auth{r: r}
 }
 
-func (s *Admin) EnsureCredentials(ctx context.Context) (string, string, error) {
+func (s *Auth) EnsureCredentials(ctx context.Context, cfgUsername string, cfgPassword string) (string, string, error) {
+	if cfgUsername != "" && cfgPassword != "" {
+		if err := s.r.UpsertUser(ctx, cfgUsername, cfgPassword); err != nil {
+			return "", "", fmt.Errorf("create initial user: %w", err)
+		}
+		return cfgUsername, cfgPassword, nil
+	}
 	exists, err := s.r.UserExists(ctx)
 	if err != nil {
 		return "", "", err
@@ -37,7 +43,7 @@ func (s *Admin) EnsureCredentials(ctx context.Context) (string, string, error) {
 	return s.createCredentials(ctx)
 }
 
-func (s *Admin) createCredentials(ctx context.Context) (string, string, error) {
+func (s *Auth) createCredentials(ctx context.Context) (string, string, error) {
 	username, err := randomWords(2)
 	if err != nil {
 		return "", "", fmt.Errorf("generate username: %w", err)
@@ -52,7 +58,7 @@ func (s *Admin) createCredentials(ctx context.Context) (string, string, error) {
 	return username, password, nil
 }
 
-func (s *Admin) CheckLogin(ctx context.Context, username string, password string, now time.Time) (bool, error) {
+func (s *Auth) CheckLogin(ctx context.Context, username string, password string, now time.Time) (bool, error) {
 	user, err := s.r.GetUser(ctx, username)
 	if err != nil {
 		if errors.Is(err, model.ErrNotFound) {
@@ -87,7 +93,7 @@ func (s *Admin) CheckLogin(ctx context.Context, username string, password string
 	return true, nil
 }
 
-func (s *Admin) GetCredentials(ctx context.Context) (string, string, error) {
+func (s *Auth) GetCredentials(ctx context.Context) (string, string, error) {
 	user, err := s.r.GetFirstUser(ctx)
 	if err != nil {
 		return "", "", err

@@ -52,6 +52,7 @@ templ ProcessResults(points []model.ProcessPoint) {
 					<th>Name</th>
 					<th>CPU %</th>
 					<th>RAM %</th>
+					<th>RAM Used</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -61,6 +62,7 @@ templ ProcessResults(points []model.ProcessPoint) {
 						<td>{ p.Name }</td>
 						<td>{ strconv.FormatFloat(p.CPU, 'f', 1, 64) }</td>
 						<td>{ strconv.FormatFloat(p.RAM, 'f', 1, 64) }</td>
+						<td>{ formatBytes(p.RAMBytes) }</td>
 					</tr>
 				}
 			</tbody>
@@ -91,6 +93,7 @@ templ ContainerResults(points []model.ContainerPoint) {
 					<th>Image</th>
 					<th>CPU %</th>
 					<th>RAM %</th>
+					<th>RAM Used</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -100,6 +103,7 @@ templ ContainerResults(points []model.ContainerPoint) {
 						<td>{ p.Image }</td>
 						<td>{ strconv.FormatFloat(p.CPU, 'f', 1, 64) }</td>
 						<td>{ strconv.FormatFloat(p.RAM, 'f', 1, 64) }</td>
+						<td>{ formatBytes(p.RAMBytes) }</td>
 					</tr>
 				}
 			</tbody>

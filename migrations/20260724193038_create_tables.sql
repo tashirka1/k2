@@ -1,6 +1,6 @@
 -- +goose Up
 
-CREATE TABLE IF NOT EXISTS admin_user (
+CREATE TABLE IF NOT EXISTS auth_user (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     password TEXT NOT NULL,
@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS metrics_process (
     pid INTEGER NOT NULL,
     name TEXT NOT NULL,
     cpu REAL NOT NULL,
-    ram REAL NOT NULL
+    ram REAL NOT NULL,
+    ram_bytes INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_process_ts ON metrics_process(timestamp);
 
@@ -35,7 +36,8 @@ CREATE TABLE IF NOT EXISTS metrics_container (
     name TEXT NOT NULL,
     image TEXT NOT NULL,
     cpu REAL NOT NULL,
-    ram REAL NOT NULL
+    ram REAL NOT NULL,
+    ram_bytes INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_container_ts ON metrics_container(timestamp);
 
@@ -45,7 +47,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS metrics_container_fts USING fts5(name, image)
 
 -- +goose Down
 
-DROP TABLE IF EXISTS admin_user;
+DROP TABLE IF EXISTS auth_user;
 DROP TABLE IF EXISTS metrics_resource;
 DROP TABLE IF EXISTS metrics_process;
 DROP TABLE IF EXISTS metrics_container;

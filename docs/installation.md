@@ -15,6 +15,8 @@ cat > /etc/k2/.env <<EOF
 K2_SESSION_KEY=$(openssl rand -hex 32)
 K2_PORT=8000
 K2_DB_NAME=/var/lib/k2/data.db
+K2_USERNAME=admin
+K2_PASSWORD=$(openssl rand -base64 18)
 EOF
 
 # Install and start service

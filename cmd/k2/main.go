@@ -14,9 +14,9 @@ import (
 
 	"github.com/tashirka1/k2"
 
-	admin_handler "github.com/tashirka1/k2/internal/admin/handler"
-	admin_service "github.com/tashirka1/k2/internal/admin/service"
-	admin_storage "github.com/tashirka1/k2/internal/admin/storage"
+	auth_handler "github.com/tashirka1/k2/internal/auth/handler"
+	auth_service "github.com/tashirka1/k2/internal/auth/service"
+	auth_storage "github.com/tashirka1/k2/internal/auth/storage"
 	"github.com/tashirka1/k2/internal/core/config"
 	"github.com/tashirka1/k2/internal/core/db"
 	"github.com/tashirka1/k2/internal/core/health"
@@ -57,7 +57,7 @@ func main() {
 
 	credentialsCmd := &cobra.Command{
 		Use:   "credentials",
-		Short: "Display admin credentials",
+		Short: "Display auth credentials",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			database, err := db.NewDB(cfg.DBName)
 			if err != nil {
@@ -65,10 +65,10 @@ func main() {
 			}
 			defer database.Close()
 
-			adminStrg := admin_storage.NewAdmin(database)
-			adminSvc := admin_service.NewAdmin(adminStrg)
+			authStrg := auth_storage.NewAuth(database)
+			authSvc := auth_service.NewAuth(authStrg)
 
-			username, password, err := adminSvc.EnsureCredentials(cmd.Context())
+			username, password, err := authSvc.EnsureCredentials(cmd.Context(), cfg.Username, cfg.Password)
 			if err != nil {
 				return fmt.Errorf("ensure credentials: %w", err)
 			}
@@ -115,10 +115,10 @@ func startServer(cmd *cobra.Command, _ []string) error {
 	e.StaticFS("/static", echo.MustSubFS(k2.EmbeddedStatic, "static"))
 	e.GET("/health", health.Handler(database))
 
-	adminStrg := admin_storage.NewAdmin(database)
-	adminSvc := admin_service.NewAdmin(adminStrg)
+	authStrg := auth_storage.NewAuth(database)
+	authSvc := auth_service.NewAuth(authStrg)
 
-	username, password, err := adminSvc.EnsureCredentials(cmd.Context())
+	username, password, err := authSvc.EnsureCredentials(cmd.Context(), cfg.Username, cfg.Password)
 	if err != nil {
 		return fmt.Errorf("ensure credentials: %w", err)
 	}
@@ -130,7 +130,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 	fmt.Printf("  Password:  %s\n", password)
 	fmt.Println(strings.Repeat("=", 60))
 
-	admin_handler.SetupHandlers(e, adminSvc)
+	auth_handler.SetupHandlers(e, authSvc)
 
 	metricsStrg := metrics_storage.NewMetrics(database)
 	metricsSvc := metrics_service.NewMetrics(metricsStrg)

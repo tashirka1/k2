@@ -1,2 +1,4 @@
 SESSION_KEY=dev_key
 DB_NAME=./db/main.db
+K2_USERNAME=admin
+K2_PASSWORD=admin123

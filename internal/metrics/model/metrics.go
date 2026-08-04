@@ -14,6 +14,7 @@ type ProcessPoint struct {
 	PID       int
 	CPU       float64
 	RAM       float64
+	RAMBytes  int64
 }
 
 type ContainerPoint struct {
@@ -22,6 +23,7 @@ type ContainerPoint struct {
 	Image     string
 	CPU       float64
 	RAM       float64
+	RAMBytes  int64
 }
 
 type ChartSeries struct {

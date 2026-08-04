@@ -15,12 +15,12 @@ templ Root() {
 templ Login(userId int) {
 	@core_view.Base("K2 Monitor", userId) {
 		<article>
-			<header><strong>Admin Login</strong></header>
+			<header><strong>Login</strong></header>
 			<div id="errors"></div>
 			<form hx-post="/login" hx-target="#main" hx-swap="outerHTML">
 				<label>
 					Username
-					<input type="text" name="username" placeholder="admin" required/>
+					<input type="text" name="username" placeholder="username" required/>
 				</label>
 				<label>
 					Password

@@ -14,6 +14,8 @@ type Config struct {
 	DBName       string
 	ExternalPort string
 	SessionKey   string
+	Username     string
+	Password     string
 }
 
 func Load() (Config, error) {
@@ -51,5 +53,7 @@ func Load() (Config, error) {
 		DBName:       dbName,
 		ExternalPort: externalPort,
 		SessionKey:   sessionKey,
+		Username:     os.Getenv("K2_USERNAME"),
+		Password:     os.Getenv("K2_PASSWORD"),
 	}, nil
 }

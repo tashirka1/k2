@@ -27,7 +27,11 @@ func collectProcessMetrics(now time.Time) []model.ProcessPoint {
 		}
 		// gopsutil v4 CPUPercent returns percentage relative to all cores
 		cpuPercent = cpuPercent / float64(runtime.NumCPU())
-		memInfo, err := p.MemoryPercent()
+		ramPercent, err := p.MemoryPercent()
+		if err != nil {
+			continue
+		}
+		memInfo, err := p.MemoryInfo()
 		if err != nil {
 			continue
 		}
@@ -36,7 +40,8 @@ func collectProcessMetrics(now time.Time) []model.ProcessPoint {
 			PID:       int(p.Pid),
 			Name:      name,
 			CPU:       cpuPercent,
-			RAM:       float64(memInfo),
+			RAM:       float64(ramPercent),
+			RAMBytes:  int64(memInfo.RSS),
 		})
 	}
 	return points
