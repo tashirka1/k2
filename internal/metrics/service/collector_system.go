@@ -10,7 +10,7 @@ import (
 )
 
 func collectSystemMetrics(now time.Time) []model.ResourcePoint {
-	ts := now.Format(time.RFC3339)
+	ts := now.UTC().Format(time.RFC3339)
 	var points []model.ResourcePoint
 
 	cpuPercent, err := cpu.Percent(0, false)

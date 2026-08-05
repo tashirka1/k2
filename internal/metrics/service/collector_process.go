@@ -9,7 +9,7 @@ import (
 )
 
 func collectProcessMetrics(now time.Time) []model.ProcessPoint {
-	ts := now.Format(time.RFC3339)
+	ts := now.UTC().Format(time.RFC3339)
 	procs, err := process.Processes()
 	if err != nil {
 		return nil

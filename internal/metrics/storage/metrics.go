@@ -200,7 +200,7 @@ func (r *Metrics) QueryLatestContainers(ctx context.Context) ([]model.ContainerP
 }
 
 func (r *Metrics) PurgeOlderThan(ctx context.Context, age time.Duration) error {
-	cutoff := time.Now().Add(-age).Format(time.RFC3339)
+	cutoff := time.Now().UTC().Add(-age).Format(time.RFC3339)
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err

@@ -23,7 +23,7 @@ func collectContainerMetrics(ctx context.Context, now time.Time) []model.Contain
 		return nil
 	}
 
-	ts := now.Format(time.RFC3339)
+	ts := now.UTC().Format(time.RFC3339)
 	points := make([]model.ContainerPoint, 0, len(result.Items))
 
 	for _, c := range result.Items {
