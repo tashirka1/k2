@@ -61,7 +61,7 @@ func (m *mockMetricsStorage) SearchContainerFTS(_ context.Context, _ string) ([]
 
 func TestSearchProcessFTS_EmptyQueryReturnsLatest(t *testing.T) {
 	r := &mockMetricsStorage{latestProcesses: []model.ProcessPoint{{PID: 1, Name: "bash"}}}
-	s := NewMetrics(r)
+	s := NewMetrics(r, nil)
 
 	points, err := s.SearchProcessFTS(context.Background(), "  ")
 
@@ -72,7 +72,7 @@ func TestSearchProcessFTS_EmptyQueryReturnsLatest(t *testing.T) {
 
 func TestSearchProcessFTS_NonEmptyUsesFTS(t *testing.T) {
 	r := &mockMetricsStorage{processResults: []model.ProcessPoint{{PID: 1, Name: "nginx"}}}
-	s := NewMetrics(r)
+	s := NewMetrics(r, nil)
 
 	points, err := s.SearchProcessFTS(context.Background(), "nginx")
 
@@ -83,7 +83,7 @@ func TestSearchProcessFTS_NonEmptyUsesFTS(t *testing.T) {
 
 func TestSearchContainerFTS_EmptyQueryReturnsLatest(t *testing.T) {
 	r := &mockMetricsStorage{latestContainers: []model.ContainerPoint{{Name: "web"}}}
-	s := NewMetrics(r)
+	s := NewMetrics(r, nil)
 
 	points, err := s.SearchContainerFTS(context.Background(), "")
 
@@ -94,7 +94,7 @@ func TestSearchContainerFTS_EmptyQueryReturnsLatest(t *testing.T) {
 
 func TestSearchContainerFTS_NonEmptyUsesFTS(t *testing.T) {
 	r := &mockMetricsStorage{containerResults: []model.ContainerPoint{{Name: "db"}}}
-	s := NewMetrics(r)
+	s := NewMetrics(r, nil)
 
 	points, err := s.SearchContainerFTS(context.Background(), "db")
 

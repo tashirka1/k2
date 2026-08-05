@@ -11,12 +11,10 @@ import (
 	"github.com/moby/moby/client"
 )
 
-func collectContainerMetrics(ctx context.Context, now time.Time) []model.ContainerPoint {
-	cli, err := client.New(client.FromEnv)
-	if err != nil {
+func collectContainerMetrics(ctx context.Context, now time.Time, cli *client.Client) []model.ContainerPoint {
+	if cli == nil {
 		return nil
 	}
-	defer cli.Close()
 
 	result, err := cli.ContainerList(ctx, client.ContainerListOptions{})
 	if err != nil {

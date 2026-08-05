@@ -4,18 +4,20 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	Port         string
-	EnvFile      string
-	DBName       string
-	ExternalPort string
-	SessionKey   string
-	Username     string
-	Password     string
+	Port            string
+	EnvFile         string
+	DBName          string
+	ExternalPort    string
+	SessionKey      string
+	Username        string
+	Password        string
+	CollectInterval time.Duration
 }
 
 func Load() (Config, error) {
@@ -47,13 +49,23 @@ func Load() (Config, error) {
 		externalPort = "9000"
 	}
 
+	collectInterval := 30 * time.Second
+	if v := os.Getenv("K2_COLLECT_INTERVAL"); v != "" {
+		parsed, err := time.ParseDuration(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid K2_COLLECT_INTERVAL: %w", err)
+		}
+		collectInterval = parsed
+	}
+
 	return Config{
-		Port:         port,
-		EnvFile:      envFile,
-		DBName:       dbName,
-		ExternalPort: externalPort,
-		SessionKey:   sessionKey,
-		Username:     os.Getenv("K2_USERNAME"),
-		Password:     os.Getenv("K2_PASSWORD"),
+		Port:            port,
+		EnvFile:         envFile,
+		DBName:          dbName,
+		ExternalPort:    externalPort,
+		SessionKey:      sessionKey,
+		Username:        os.Getenv("K2_USERNAME"),
+		Password:        os.Getenv("K2_PASSWORD"),
+		CollectInterval: collectInterval,
 	}, nil
 }

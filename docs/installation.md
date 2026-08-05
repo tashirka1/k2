@@ -17,6 +17,7 @@ K2_PORT=8000
 K2_DB_NAME=/var/lib/k2/data.db
 K2_USERNAME=admin
 K2_PASSWORD=$(openssl rand -base64 18)
+K2_COLLECT_INTERVAL=30s
 EOF
 
 # Install and start service

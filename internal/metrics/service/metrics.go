@@ -9,6 +9,8 @@ import (
 
 	"github.com/tashirka1/k2/internal/metrics/model"
 	"github.com/tashirka1/k2/internal/metrics/storage"
+
+	"github.com/moby/moby/client"
 )
 
 type MetricsService interface {
@@ -25,11 +27,12 @@ type MetricsService interface {
 }
 
 type Metrics struct {
-	r storage.MetricsStorage
+	r  storage.MetricsStorage
+	dc *client.Client
 }
 
-func NewMetrics(r storage.MetricsStorage) *Metrics {
-	return &Metrics{r: r}
+func NewMetrics(r storage.MetricsStorage, dc *client.Client) *Metrics {
+	return &Metrics{r: r, dc: dc}
 }
 
 func (s *Metrics) QueryResources(ctx context.Context, metricType string, from, to time.Time) ([]model.ResourcePoint, error) {
@@ -167,7 +170,7 @@ func (s *Metrics) collectTick(ctx context.Context) error {
 		}
 	}
 
-	containerPoints := collectContainerMetrics(ctx, now)
+	containerPoints := collectContainerMetrics(ctx, now, s.dc)
 	if len(containerPoints) > 0 {
 		if err := s.r.InsertContainerBatch(ctx, containerPoints); err != nil {
 			return err

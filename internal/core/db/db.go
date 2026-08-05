@@ -24,7 +24,7 @@ func NewDB(path string) (*sql.DB, error) {
 			"&_pragma=journal_mode(WAL)"+
 			"&_pragma=synchronous(NORMAL)"+
 			"&_pragma=temp_store(MEMORY)"+
-			"&_pragma=cache_size(-65536)"+
+			"&_pragma=cache_size(-8192)"+
 			"&_pragma=auto_vacuum(INCREMENTAL)"+
 			"&_pragma=journal_size_limit(67110000)"+
 			"&_pragma=page_size(4096)",
@@ -35,9 +35,9 @@ func NewDB(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 
-	// connection pool — read-heavy: 64 conns for 8 cores, WAL + mmap eliminate lock contention
-	db.SetMaxOpenConns(64)
-	db.SetMaxIdleConns(64)
+	// small pool keeps per-connection page cache (8 MiB) bounded
+	db.SetMaxOpenConns(8)
+	db.SetMaxIdleConns(8)
 	db.SetConnMaxLifetime(30 * time.Minute)
 	db.SetConnMaxIdleTime(15 * time.Minute)
 

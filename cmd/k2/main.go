@@ -20,6 +20,7 @@ import (
 	"github.com/tashirka1/k2/internal/core/config"
 	"github.com/tashirka1/k2/internal/core/db"
 	"github.com/tashirka1/k2/internal/core/health"
+	"github.com/tashirka1/k2/internal/core/stats"
 	metrics_handler "github.com/tashirka1/k2/internal/metrics/handler"
 	metrics_service "github.com/tashirka1/k2/internal/metrics/service"
 	metrics_storage "github.com/tashirka1/k2/internal/metrics/storage"
@@ -28,6 +29,7 @@ import (
 	echosession "github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/moby/moby/client"
 	"github.com/spf13/cobra"
 )
 
@@ -114,6 +116,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 	e.Pre(middleware.RemoveTrailingSlash())
 	e.StaticFS("/static", echo.MustSubFS(k2.EmbeddedStatic, "static"))
 	e.GET("/health", health.Handler(database))
+	e.GET("/debug/stats", stats.Handler())
 
 	authStrg := auth_storage.NewAuth(database)
 	authSvc := auth_service.NewAuth(authStrg)
@@ -132,14 +135,21 @@ func startServer(cmd *cobra.Command, _ []string) error {
 
 	auth_handler.SetupHandlers(e, authSvc)
 
+	dockerClient, err := client.New(client.FromEnv)
+	if err != nil {
+		slog.Warn("docker client init failed, container metrics disabled", "error", err)
+	} else {
+		defer dockerClient.Close()
+	}
+
 	metricsStrg := metrics_storage.NewMetrics(database)
-	metricsSvc := metrics_service.NewMetrics(metricsStrg)
+	metricsSvc := metrics_service.NewMetrics(metricsStrg, dockerClient)
 	metrics_handler.SetupHandlers(e, metricsSvc)
 
 	collectorCtx, cancelCollector := context.WithCancel(cmd.Context())
 	defer cancelCollector()
 	go func() {
-		if err := metricsSvc.RunCollector(collectorCtx, 5*time.Second); err != nil {
+		if err := metricsSvc.RunCollector(collectorCtx, cfg.CollectInterval); err != nil {
 			slog.Error("collector stopped", "error", err)
 		}
 	}()
