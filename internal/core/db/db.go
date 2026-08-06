@@ -24,7 +24,7 @@ func NewDB(path string) (*sql.DB, error) {
 			"&_pragma=journal_mode(WAL)"+
 			"&_pragma=synchronous(NORMAL)"+
 			"&_pragma=temp_store(MEMORY)"+
-			"&_pragma=cache_size(-8192)"+
+			"&_pragma=cache_size(-1024)"+
 			"&_pragma=auto_vacuum(INCREMENTAL)"+
 			"&_pragma=journal_size_limit(67110000)"+
 			"&_pragma=page_size(4096)",
@@ -35,9 +35,9 @@ func NewDB(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 
-	// small pool keeps per-connection page cache (8 MiB) bounded
-	db.SetMaxOpenConns(8)
-	db.SetMaxIdleConns(8)
+	// small pool keeps per-connection page cache (1 MiB) bounded
+	db.SetMaxOpenConns(4)
+	db.SetMaxIdleConns(4)
 	db.SetConnMaxLifetime(30 * time.Minute)
 	db.SetConnMaxIdleTime(15 * time.Minute)
 
