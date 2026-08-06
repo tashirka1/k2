@@ -38,8 +38,8 @@ func NewDB(path string) (*sql.DB, error) {
 	// small pool keeps per-connection page cache (1 MiB) bounded
 	db.SetMaxOpenConns(4)
 	db.SetMaxIdleConns(4)
-	db.SetConnMaxLifetime(30 * time.Minute)
-	db.SetConnMaxIdleTime(15 * time.Minute)
+	db.SetConnMaxLifetime(15 * time.Minute)
+	db.SetConnMaxIdleTime(5 * time.Minute)
 
 	// goose up
 	if err := runMigrations(db); err != nil {
