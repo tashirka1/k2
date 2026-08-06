@@ -10,7 +10,7 @@ You are a Senior Go developer. Write concise, performant, and clear code.
 ## 🛠 Tech Stack
 - **Backend:** Go (idiomatic code, standard library + Echo v4).
 - **Frontend:** htmx + templ (Go HTML components) + PicoCSS (minimalist CSS via semantic tags).
-- **Database:** SQLite3 (driver `mattn/go-sqlite3`)
+- **Database:** SQLite3 (driver `modernc.org/sqlite`, pure Go, FTS5 built in)
 - **Migrations:** goose (`/migrations` in project root)
 
 ## 🏗 Architecture Rules (Flat Modular + Layered)

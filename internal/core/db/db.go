@@ -9,7 +9,7 @@ import (
 
 	"github.com/tashirka1/k2"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 
 	"github.com/pressly/goose/v3"
 )
@@ -30,7 +30,7 @@ func NewDB(path string) (*sql.DB, error) {
 			"&_pragma=page_size(4096)",
 		path,
 	)
-	db, err := sql.Open("sqlite3", dsn)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}

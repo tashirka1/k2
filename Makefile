@@ -14,7 +14,7 @@ build:
 
 .PHONY: build-bin
 build-bin:
-	@go tool templ generate && go build -tags fts5 -ldflags="-s -w" -o bin/k2 cmd/k2/main.go
+	@go tool templ generate && go build -ldflags="-s -w" -o bin/k2 cmd/k2/main.go
 
 .PHONY: lint
 lint:
@@ -22,7 +22,7 @@ lint:
 
 .PHONY: check
 check:
-	@go tool templ generate && go fmt ./... && golangci-lint run ./... && go test -tags fts5 ./...
+	@go tool templ generate && go fmt ./... && golangci-lint run ./... && go test ./...
 
 .PHONY: dev
 dev:

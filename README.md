@@ -16,7 +16,6 @@ make up    # run docker container
 
 Production Binary
 ```bash
-sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential libsqlite3-dev
 cp env-example .env
 make build-bin
 ./bin/k2 # run binary

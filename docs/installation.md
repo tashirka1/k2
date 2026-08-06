@@ -21,7 +21,24 @@ K2_COLLECT_INTERVAL=30s
 EOF
 
 # Install and start service
-cp contrib/k2.service /etc/systemd/system/
+cat > /etc/systemd/system/k2.service <<EOF
+[Unit]
+Description=K2 server monitoring
+After=network.target
+
+[Service]
+Type=simple
+User=noroot
+Group=noroot
+WorkingDirectory=/var/lib/k2
+EnvironmentFile=/etc/k2/.env
+ExecStart=/usr/local/bin/k2
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
 systemctl daemon-reload
 systemctl enable --now k2
 ```
