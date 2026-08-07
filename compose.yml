@@ -8,6 +8,8 @@ x-logging-template: &default-logging
 services:
   app:
     pid: host
+    group_add:
+      - 984
     build:
       dockerfile: ./Dockerfile
     <<: *default-logging

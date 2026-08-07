@@ -17,9 +17,8 @@ FROM alpine:3.23 AS run
 RUN apk add --no-cache ca-certificates curl
 WORKDIR /app
 COPY --from=builder /app/bin/k2 /app/bin/k2
-# if you enable two lines below, container doesn't have access to docker.sock
-# RUN adduser --disabled-password --gecos "" noroot && \
-#     chown -R noroot:noroot /app
-# USER noroot:noroot
+RUN adduser --disabled-password --gecos "" noroot && \
+    chown -R noroot:noroot /app
+USER noroot:noroot
 EXPOSE 8000
 CMD ["/app/bin/k2"]
