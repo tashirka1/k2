@@ -110,7 +110,7 @@ func (r *Metrics) InsertContainerBatch(ctx context.Context, points []model.Conta
 }
 
 func (r *Metrics) QueryResources(ctx context.Context, metricType string, from, to time.Time) ([]model.ResourcePoint, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT timestamp, type, name, COALESCE(device, ''), value FROM metrics_resource WHERE type = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp", metricType, from.Format(time.RFC3339), to.Format(time.RFC3339))
+	rows, err := r.db.QueryContext(ctx, "SELECT timestamp, type, name, COALESCE(device, ''), value FROM metrics_resource WHERE type = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp", metricType, from.UTC().Format(time.RFC3339), to.UTC().Format(time.RFC3339))
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (r *Metrics) QueryResources(ctx context.Context, metricType string, from, t
 }
 
 func (r *Metrics) QueryProcesses(ctx context.Context, from, to time.Time) ([]model.ProcessPoint, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT timestamp, pid, name, cpu, ram, ram_bytes FROM metrics_process WHERE timestamp >= ? AND timestamp <= ? ORDER BY cpu DESC", from.Format(time.RFC3339), to.Format(time.RFC3339))
+	rows, err := r.db.QueryContext(ctx, "SELECT timestamp, pid, name, cpu, ram, ram_bytes FROM metrics_process WHERE timestamp >= ? AND timestamp <= ? ORDER BY cpu DESC", from.UTC().Format(time.RFC3339), to.UTC().Format(time.RFC3339))
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func (r *Metrics) QueryProcesses(ctx context.Context, from, to time.Time) ([]mod
 }
 
 func (r *Metrics) QueryContainers(ctx context.Context, from, to time.Time) ([]model.ContainerPoint, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT timestamp, name, image, cpu, ram, ram_bytes FROM metrics_container WHERE timestamp >= ? AND timestamp <= ? ORDER BY cpu DESC", from.Format(time.RFC3339), to.Format(time.RFC3339))
+	rows, err := r.db.QueryContext(ctx, "SELECT timestamp, name, image, cpu, ram, ram_bytes FROM metrics_container WHERE timestamp >= ? AND timestamp <= ? ORDER BY cpu DESC", from.UTC().Format(time.RFC3339), to.UTC().Format(time.RFC3339))
 	if err != nil {
 		return nil, err
 	}
