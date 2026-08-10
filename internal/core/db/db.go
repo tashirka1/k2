@@ -25,7 +25,7 @@ func NewDB(path string) (*sql.DB, error) {
 			"&_pragma=synchronous(NORMAL)"+
 			"&_pragma=temp_store(MEMORY)"+
 			"&_pragma=cache_size(-1024)"+
-			"&_pragma=auto_vacuum(INCREMENTAL)"+
+			"&_pragma=auto_vacuum(FULL)"+
 			"&_pragma=journal_size_limit(67110000)"+
 			"&_pragma=page_size(4096)",
 		path,
