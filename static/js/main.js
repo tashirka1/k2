@@ -16,16 +16,15 @@ function getPeriod() {
 
 function initCharts() {
 	document.querySelectorAll('canvas[id$=Chart]').forEach(function (canvas) {
-		if (pendingCharts[canvas.id]) return;
-		var token = Date.now();
-		pendingCharts[canvas.id] = token;
+		if (pendingCharts[canvas.id] && pendingCharts[canvas.id].el === canvas) return;
+		pendingCharts[canvas.id] = { el: canvas, token: Date.now() };
 
 		var old = Chart.getChart(canvas.id);
 		if (old) old.destroy();
 
 		var url = '/metrics/chart/' + canvas.id.replace('Chart', '') + '?period=' + getPeriod();
 		fetch(url).then(function (r) { return r.json(); }).then(function (data) {
-			if (pendingCharts[canvas.id] !== token) return;
+			if (pendingCharts[canvas.id].el !== canvas) return;
 			var labels = data.labels || [];
 			var multiDay = labels.length > 1 &&
 				new Date(labels[0]).toDateString() !== new Date(labels[labels.length - 1]).toDateString();
@@ -49,7 +48,9 @@ function initCharts() {
 					}
 				}
 			});
-			delete pendingCharts[canvas.id];
+			if (pendingCharts[canvas.id].el === canvas) delete pendingCharts[canvas.id];
+		}).catch(function () {
+			if (pendingCharts[canvas.id] && pendingCharts[canvas.id].el === canvas) delete pendingCharts[canvas.id];
 		});
 	});
 }
