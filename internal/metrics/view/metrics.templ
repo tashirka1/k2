@@ -51,10 +51,11 @@ templ ProcessResults(points []model.ProcessPoint) {
 	if len(points) == 0 {
 		<small>No processes found</small>
 	} else {
-		<table>
-			<thead>
-				<tr>
-					<th>PID</th>
+		<div style="overflow-x: auto">
+			<table>
+				<thead>
+					<tr>
+						<th>PID</th>
 					<th>Name</th>
 					<th>CPU %</th>
 					<th>RAM %</th>
@@ -72,7 +73,8 @@ templ ProcessResults(points []model.ProcessPoint) {
 					</tr>
 				}
 			</tbody>
-		</table>
+			</table>
+		</div>
 	}
 }
 
@@ -92,28 +94,30 @@ templ ContainerResults(points []model.ContainerPoint) {
 	if len(points) == 0 {
 		<small>No containers found</small>
 	} else {
-		<table>
-			<thead>
-				<tr>
-					<th>Name</th>
-					<th>Image</th>
-					<th>CPU %</th>
-					<th>RAM %</th>
-					<th>RAM Used</th>
-				</tr>
-			</thead>
-			<tbody>
-				for _, p := range points {
+		<div style="overflow-x: auto">
+			<table>
+				<thead>
 					<tr>
-						<td>{ p.Name }</td>
-						<td>{ p.Image }</td>
-						<td>{ strconv.FormatFloat(p.CPU, 'f', 1, 64) }</td>
-						<td>{ strconv.FormatFloat(p.RAM, 'f', 1, 64) }</td>
-						<td>{ formatBytes(p.RAMBytes) }</td>
+						<th>Name</th>
+						<th>Image</th>
+						<th>CPU %</th>
+						<th>RAM %</th>
+						<th>RAM Used</th>
 					</tr>
-				}
-			</tbody>
-		</table>
+				</thead>
+				<tbody>
+					for _, p := range points {
+						<tr>
+							<td>{ p.Name }</td>
+							<td>{ p.Image }</td>
+							<td>{ strconv.FormatFloat(p.CPU, 'f', 1, 64) }</td>
+							<td>{ strconv.FormatFloat(p.RAM, 'f', 1, 64) }</td>
+							<td>{ formatBytes(p.RAMBytes) }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
 	}
 }
 
