@@ -20,11 +20,13 @@ K2_EXTERNAL_PORT=9000
 K2_USERNAME=admin
 K2_PASSWORD=your-password
 K2_COLLECT_INTERVAL=30s
+K2_RETENTION=168h
 ```
 
 The `K2_EXTERNAL_PORT` controls the host port mapping (default: 9000).
 
 The `K2_COLLECT_INTERVAL` sets how often the collector samples metrics (default: `30s`).
+The `K2_RETENTION` sets how long metrics are kept before purging (default: `168h`).
 
 ## Volumes
 

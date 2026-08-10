@@ -143,7 +143,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 	}
 
 	metricsStrg := metrics_storage.NewMetrics(database)
-	metricsSvc := metrics_service.NewMetrics(metricsStrg, dockerClient)
+	metricsSvc := metrics_service.NewMetrics(metricsStrg, dockerClient, cfg.Retention)
 	metrics_handler.SetupHandlers(e, metricsSvc)
 
 	collectorCtx, cancelCollector := context.WithCancel(cmd.Context())

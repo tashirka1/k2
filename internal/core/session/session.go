@@ -54,3 +54,15 @@ func SetUserId(c echo.Context, userId int) {
 		slog.Error("session save failed", "error", err)
 	}
 }
+
+func RequireAuth() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if GetUserId(c) == 0 {
+				c.Response().Header().Set("HX-Redirect", "/login")
+				return c.Redirect(http.StatusSeeOther, "/login")
+			}
+			return next(c)
+		}
+	}
+}

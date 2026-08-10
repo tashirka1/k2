@@ -23,17 +23,6 @@ func NewAuth(s service.AuthService) *Auth {
 	return &Auth{s: s}
 }
 
-func (h *Auth) authMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		userId := session.GetUserId(c)
-		if userId == 0 {
-			c.Response().Header().Set("HX-Redirect", "/login")
-			return c.Redirect(http.StatusSeeOther, "/login")
-		}
-		return next(c)
-	}
-}
-
 func (h *Auth) Root(c echo.Context) error {
 	userId := session.GetUserId(c)
 	if userId != 0 {
@@ -105,5 +94,5 @@ func SetupHandlers(e *echo.Echo, s service.AuthService) {
 	e.GET("/login", h.GetLogin)
 	e.POST("/login", h.PostLogin)
 	e.GET("/logout", h.Logout)
-	e.GET("/dashboard", h.authMiddleware(h.Dashboard))
+	e.GET("/dashboard", session.RequireAuth()(h.Dashboard))
 }

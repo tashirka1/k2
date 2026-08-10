@@ -21,18 +21,19 @@ type MetricsService interface {
 	QueryContainers(ctx context.Context, from, to time.Time) ([]model.ContainerPoint, error)
 	QueryLatestProcesses(ctx context.Context) ([]model.ProcessPoint, error)
 	QueryLatestContainers(ctx context.Context) ([]model.ContainerPoint, error)
-	SearchResourceFTS(ctx context.Context, query string) ([]model.ResourcePoint, error)
-	SearchProcessFTS(ctx context.Context, query string) ([]model.ProcessPoint, error)
-	SearchContainerFTS(ctx context.Context, query string) ([]model.ContainerPoint, error)
+	SearchResource(ctx context.Context, query string) ([]model.ResourcePoint, error)
+	SearchProcess(ctx context.Context, query string) ([]model.ProcessPoint, error)
+	SearchContainer(ctx context.Context, query string) ([]model.ContainerPoint, error)
 }
 
 type Metrics struct {
-	r  storage.MetricsStorage
-	dc *client.Client
+	r         storage.MetricsStorage
+	dc        *client.Client
+	retention time.Duration
 }
 
-func NewMetrics(r storage.MetricsStorage, dc *client.Client) *Metrics {
-	return &Metrics{r: r, dc: dc}
+func NewMetrics(r storage.MetricsStorage, dc *client.Client, retention time.Duration) *Metrics {
+	return &Metrics{r: r, dc: dc, retention: retention}
 }
 
 func (s *Metrics) QueryResources(ctx context.Context, metricType string, from, to time.Time) ([]model.ResourcePoint, error) {
@@ -110,22 +111,22 @@ func (s *Metrics) QueryLatestContainers(ctx context.Context) ([]model.ContainerP
 	return s.r.QueryLatestContainers(ctx)
 }
 
-func (s *Metrics) SearchResourceFTS(ctx context.Context, query string) ([]model.ResourcePoint, error) {
-	return s.r.SearchResourceFTS(ctx, query)
+func (s *Metrics) SearchResource(ctx context.Context, query string) ([]model.ResourcePoint, error) {
+	return s.r.SearchResource(ctx, query)
 }
 
-func (s *Metrics) SearchProcessFTS(ctx context.Context, query string) ([]model.ProcessPoint, error) {
+func (s *Metrics) SearchProcess(ctx context.Context, query string) ([]model.ProcessPoint, error) {
 	if strings.TrimSpace(query) == "" {
 		return s.r.QueryLatestProcesses(ctx)
 	}
-	return s.r.SearchProcessFTS(ctx, query)
+	return s.r.SearchProcess(ctx, query)
 }
 
-func (s *Metrics) SearchContainerFTS(ctx context.Context, query string) ([]model.ContainerPoint, error) {
+func (s *Metrics) SearchContainer(ctx context.Context, query string) ([]model.ContainerPoint, error) {
 	if strings.TrimSpace(query) == "" {
 		return s.r.QueryLatestContainers(ctx)
 	}
-	return s.r.SearchContainerFTS(ctx, query)
+	return s.r.SearchContainer(ctx, query)
 }
 
 func (s *Metrics) RunCollector(ctx context.Context, interval time.Duration) error {
@@ -155,18 +156,12 @@ func (s *Metrics) collectTick(ctx context.Context) error {
 		if err := s.r.InsertResourceBatch(ctx, resourcePoints); err != nil {
 			return err
 		}
-		if err := s.r.RebuildResourceFTS(ctx); err != nil {
-			slog.Warn("rebuild resource fts failed", "error", err)
-		}
 	}
 
 	processPoints := collectProcessMetrics(now)
 	if len(processPoints) > 0 {
 		if err := s.r.InsertProcessBatch(ctx, processPoints); err != nil {
 			return err
-		}
-		if err := s.r.RebuildProcessFTS(ctx); err != nil {
-			slog.Warn("rebuild process fts failed", "error", err)
 		}
 	}
 
@@ -175,12 +170,9 @@ func (s *Metrics) collectTick(ctx context.Context) error {
 		if err := s.r.InsertContainerBatch(ctx, containerPoints); err != nil {
 			return err
 		}
-		if err := s.r.RebuildContainerFTS(ctx); err != nil {
-			slog.Warn("rebuild container fts failed", "error", err)
-		}
 	}
 
-	if err := s.r.PurgeOlderThan(ctx, 7*24*time.Hour); err != nil {
+	if err := s.r.PurgeOlderThan(ctx, s.retention); err != nil {
 		slog.Warn("purge old data failed", "error", err)
 	}
 

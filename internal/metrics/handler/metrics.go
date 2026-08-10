@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/tashirka1/k2/internal/core/session"
 	core_view "github.com/tashirka1/k2/internal/core/view"
 	"github.com/tashirka1/k2/internal/metrics/service"
 	"github.com/tashirka1/k2/internal/metrics/view"
@@ -79,21 +80,21 @@ func (h *Metrics) Search(c echo.Context) error {
 	ctx := c.Request().Context()
 	switch category {
 	case "process":
-		results, err := h.s.SearchProcessFTS(ctx, q)
+		results, err := h.s.SearchProcess(ctx, q)
 		if err != nil {
 			slog.Error("search failed", "error", err)
 			return c.String(http.StatusInternalServerError, "search failed")
 		}
 		return core_view.RenderTemplate(c, view.ProcessResults(results))
 	case "container":
-		results, err := h.s.SearchContainerFTS(ctx, q)
+		results, err := h.s.SearchContainer(ctx, q)
 		if err != nil {
 			slog.Error("search failed", "error", err)
 			return c.String(http.StatusInternalServerError, "search failed")
 		}
 		return core_view.RenderTemplate(c, view.ContainerResults(results))
 	case "resource":
-		results, err := h.s.SearchResourceFTS(ctx, q)
+		results, err := h.s.SearchResource(ctx, q)
 		if err != nil {
 			slog.Error("search failed", "error", err)
 			return c.String(http.StatusInternalServerError, "search failed")
@@ -107,7 +108,7 @@ func (h *Metrics) Search(c echo.Context) error {
 func SetupHandlers(e *echo.Echo, s service.MetricsService) {
 	h := NewMetrics(s)
 
-	group := e.Group("/metrics")
+	group := e.Group("/metrics", session.RequireAuth())
 	group.GET("/dashboard", h.Dashboard)
 	group.GET("/processes", h.Processes)
 	group.GET("/containers", h.Containers)

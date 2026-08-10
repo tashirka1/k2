@@ -21,12 +21,9 @@ type MetricsStorage interface {
 	QueryLatestProcesses(ctx context.Context) ([]model.ProcessPoint, error)
 	QueryLatestContainers(ctx context.Context) ([]model.ContainerPoint, error)
 	PurgeOlderThan(ctx context.Context, age time.Duration) error
-	RebuildResourceFTS(ctx context.Context) error
-	RebuildProcessFTS(ctx context.Context) error
-	RebuildContainerFTS(ctx context.Context) error
-	SearchResourceFTS(ctx context.Context, query string) ([]model.ResourcePoint, error)
-	SearchProcessFTS(ctx context.Context, query string) ([]model.ProcessPoint, error)
-	SearchContainerFTS(ctx context.Context, query string) ([]model.ContainerPoint, error)
+	SearchResource(ctx context.Context, query string) ([]model.ResourcePoint, error)
+	SearchProcess(ctx context.Context, query string) ([]model.ProcessPoint, error)
+	SearchContainer(ctx context.Context, query string) ([]model.ContainerPoint, error)
 }
 
 type Metrics struct {
@@ -215,109 +212,13 @@ func (r *Metrics) PurgeOlderThan(ctx context.Context, age time.Duration) error {
 	return tx.Commit()
 }
 
-func (r *Metrics) RebuildResourceFTS(ctx context.Context) error {
-	rows, err := r.db.QueryContext(ctx, "SELECT DISTINCT type, name, COALESCE(device, '') FROM metrics_resource WHERE timestamp = (SELECT MAX(timestamp) FROM metrics_resource)")
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if _, err := tx.ExecContext(ctx, "DELETE FROM metrics_resource_fts"); err != nil {
-		return err
-	}
-
-	for rows.Next() {
-		var typ, name, device string
-		if err := rows.Scan(&typ, &name, &device); err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx, "INSERT INTO metrics_resource_fts(type, name, device) VALUES (?, ?, ?)", typ, name, device); err != nil {
-			return err
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
-func (r *Metrics) RebuildProcessFTS(ctx context.Context) error {
-	rows, err := r.db.QueryContext(ctx, "SELECT DISTINCT name, CAST(pid AS TEXT) FROM metrics_process WHERE timestamp = (SELECT MAX(timestamp) FROM metrics_process)")
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if _, err := tx.ExecContext(ctx, "DELETE FROM metrics_process_fts"); err != nil {
-		return err
-	}
-
-	for rows.Next() {
-		var name, pid string
-		if err := rows.Scan(&name, &pid); err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx, "INSERT INTO metrics_process_fts(name, pid) VALUES (?, ?)", name, pid); err != nil {
-			return err
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
-func (r *Metrics) RebuildContainerFTS(ctx context.Context) error {
-	rows, err := r.db.QueryContext(ctx, "SELECT DISTINCT name, image FROM metrics_container WHERE timestamp = (SELECT MAX(timestamp) FROM metrics_container)")
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if _, err := tx.ExecContext(ctx, "DELETE FROM metrics_container_fts"); err != nil {
-		return err
-	}
-
-	for rows.Next() {
-		var name, image string
-		if err := rows.Scan(&name, &image); err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx, "INSERT INTO metrics_container_fts(name, image) VALUES (?, ?)", name, image); err != nil {
-			return err
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
-func (r *Metrics) SearchResourceFTS(ctx context.Context, query string) ([]model.ResourcePoint, error) {
-	q := sanitizeFTSQuery(query)
-	rows, err := r.db.QueryContext(ctx, `SELECT r.timestamp, r.type, r.name, r.device, r.value
-		FROM metrics_resource_fts f
-		JOIN metrics_resource r ON r.type = f.type AND r.name = f.name AND COALESCE(r.device, '') = f.device
-		WHERE metrics_resource_fts MATCH ? AND r.timestamp = (SELECT MAX(timestamp) FROM metrics_resource)
-		ORDER BY r.value DESC`, q)
+func (r *Metrics) SearchResource(ctx context.Context, query string) ([]model.ResourcePoint, error) {
+	q := sanitizeQuery(query)
+	rows, err := r.db.QueryContext(ctx, `SELECT timestamp, type, name, COALESCE(device, ''), value
+		FROM metrics_resource
+		WHERE timestamp = (SELECT MAX(timestamp) FROM metrics_resource)
+		  AND (name LIKE ? OR type LIKE ? OR COALESCE(device, '') LIKE ?)
+		ORDER BY value DESC LIMIT 50`, "%"+q+"%", "%"+q+"%", "%"+q+"%")
 	if err != nil {
 		return nil, err
 	}
@@ -334,13 +235,13 @@ func (r *Metrics) SearchResourceFTS(ctx context.Context, query string) ([]model.
 	return results, rows.Err()
 }
 
-func (r *Metrics) SearchProcessFTS(ctx context.Context, query string) ([]model.ProcessPoint, error) {
-	q := sanitizeFTSQuery(query)
-	rows, err := r.db.QueryContext(ctx, `SELECT p.timestamp, p.pid, p.name, p.cpu, p.ram, p.ram_bytes
-		FROM metrics_process_fts f
-		JOIN metrics_process p ON p.pid = CAST(f.pid AS INTEGER)
-		WHERE metrics_process_fts MATCH ? AND p.timestamp = (SELECT MAX(timestamp) FROM metrics_process)
-		ORDER BY p.cpu DESC`, q)
+func (r *Metrics) SearchProcess(ctx context.Context, query string) ([]model.ProcessPoint, error) {
+	q := sanitizeQuery(query)
+	rows, err := r.db.QueryContext(ctx, `SELECT timestamp, pid, name, cpu, ram, ram_bytes
+		FROM metrics_process
+		WHERE timestamp = (SELECT MAX(timestamp) FROM metrics_process)
+		  AND (name LIKE ? OR CAST(pid AS TEXT) LIKE ?)
+		ORDER BY cpu DESC LIMIT 50`, "%"+q+"%", "%"+q+"%")
 	if err != nil {
 		return nil, err
 	}
@@ -357,13 +258,13 @@ func (r *Metrics) SearchProcessFTS(ctx context.Context, query string) ([]model.P
 	return results, rows.Err()
 }
 
-func (r *Metrics) SearchContainerFTS(ctx context.Context, query string) ([]model.ContainerPoint, error) {
-	q := sanitizeFTSQuery(query)
-	rows, err := r.db.QueryContext(ctx, `SELECT c.timestamp, c.name, c.image, c.cpu, c.ram, c.ram_bytes
-		FROM metrics_container_fts f
-		JOIN metrics_container c ON c.name = f.name AND c.image = f.image
-		WHERE metrics_container_fts MATCH ? AND c.timestamp = (SELECT MAX(timestamp) FROM metrics_container)
-		ORDER BY c.cpu DESC`, q)
+func (r *Metrics) SearchContainer(ctx context.Context, query string) ([]model.ContainerPoint, error) {
+	q := sanitizeQuery(query)
+	rows, err := r.db.QueryContext(ctx, `SELECT timestamp, name, image, cpu, ram, ram_bytes
+		FROM metrics_container
+		WHERE timestamp = (SELECT MAX(timestamp) FROM metrics_container)
+		  AND (name LIKE ? OR image LIKE ?)
+		ORDER BY cpu DESC LIMIT 50`, "%"+q+"%", "%"+q+"%")
 	if err != nil {
 		return nil, err
 	}
@@ -382,12 +283,8 @@ func (r *Metrics) SearchContainerFTS(ctx context.Context, query string) ([]model
 
 var nonWordChars = regexp.MustCompile(`[^a-zA-Z0-9_\-\s]+`)
 
-func sanitizeFTSQuery(query string) string {
-	q := strings.TrimSpace(nonWordChars.ReplaceAllString(query, " "))
-	if q == "" {
-		return "*"
-	}
-	return q
+func sanitizeQuery(query string) string {
+	return strings.TrimSpace(nonWordChars.ReplaceAllString(query, " "))
 }
 
 var _ MetricsStorage = (*Metrics)(nil)

@@ -44,59 +44,56 @@ func (m *mockMetricsStorage) QueryLatestContainers(_ context.Context) ([]model.C
 	return m.latestContainers, nil
 }
 func (m *mockMetricsStorage) PurgeOlderThan(_ context.Context, _ time.Duration) error { return nil }
-func (m *mockMetricsStorage) RebuildResourceFTS(_ context.Context) error              { return nil }
-func (m *mockMetricsStorage) RebuildProcessFTS(_ context.Context) error               { return nil }
-func (m *mockMetricsStorage) RebuildContainerFTS(_ context.Context) error             { return nil }
-func (m *mockMetricsStorage) SearchResourceFTS(_ context.Context, _ string) ([]model.ResourcePoint, error) {
+func (m *mockMetricsStorage) SearchResource(_ context.Context, _ string) ([]model.ResourcePoint, error) {
 	return nil, nil
 }
-func (m *mockMetricsStorage) SearchProcessFTS(_ context.Context, _ string) ([]model.ProcessPoint, error) {
+func (m *mockMetricsStorage) SearchProcess(_ context.Context, _ string) ([]model.ProcessPoint, error) {
 	m.searchProcessCall = true
 	return m.processResults, nil
 }
-func (m *mockMetricsStorage) SearchContainerFTS(_ context.Context, _ string) ([]model.ContainerPoint, error) {
+func (m *mockMetricsStorage) SearchContainer(_ context.Context, _ string) ([]model.ContainerPoint, error) {
 	m.searchContainer = true
 	return m.containerResults, nil
 }
 
-func TestSearchProcessFTS_EmptyQueryReturnsLatest(t *testing.T) {
+func TestSearchProcess_EmptyQueryReturnsLatest(t *testing.T) {
 	r := &mockMetricsStorage{latestProcesses: []model.ProcessPoint{{PID: 1, Name: "bash"}}}
-	s := NewMetrics(r, nil)
+	s := NewMetrics(r, nil, 7*24*time.Hour)
 
-	points, err := s.SearchProcessFTS(context.Background(), "  ")
+	points, err := s.SearchProcess(context.Background(), "  ")
 
 	assert.NoError(t, err)
 	assert.Equal(t, r.latestProcesses, points)
 	assert.False(t, r.searchProcessCall)
 }
 
-func TestSearchProcessFTS_NonEmptyUsesFTS(t *testing.T) {
+func TestSearchProcess_NonEmptyUsesSearch(t *testing.T) {
 	r := &mockMetricsStorage{processResults: []model.ProcessPoint{{PID: 1, Name: "nginx"}}}
-	s := NewMetrics(r, nil)
+	s := NewMetrics(r, nil, 7*24*time.Hour)
 
-	points, err := s.SearchProcessFTS(context.Background(), "nginx")
+	points, err := s.SearchProcess(context.Background(), "nginx")
 
 	assert.NoError(t, err)
 	assert.Equal(t, r.processResults, points)
 	assert.True(t, r.searchProcessCall)
 }
 
-func TestSearchContainerFTS_EmptyQueryReturnsLatest(t *testing.T) {
+func TestSearchContainer_EmptyQueryReturnsLatest(t *testing.T) {
 	r := &mockMetricsStorage{latestContainers: []model.ContainerPoint{{Name: "web"}}}
-	s := NewMetrics(r, nil)
+	s := NewMetrics(r, nil, 7*24*time.Hour)
 
-	points, err := s.SearchContainerFTS(context.Background(), "")
+	points, err := s.SearchContainer(context.Background(), "")
 
 	assert.NoError(t, err)
 	assert.Equal(t, r.latestContainers, points)
 	assert.False(t, r.searchContainer)
 }
 
-func TestSearchContainerFTS_NonEmptyUsesFTS(t *testing.T) {
+func TestSearchContainer_NonEmptyUsesSearch(t *testing.T) {
 	r := &mockMetricsStorage{containerResults: []model.ContainerPoint{{Name: "db"}}}
-	s := NewMetrics(r, nil)
+	s := NewMetrics(r, nil, 7*24*time.Hour)
 
-	points, err := s.SearchContainerFTS(context.Background(), "db")
+	points, err := s.SearchContainer(context.Background(), "db")
 
 	assert.NoError(t, err)
 	assert.Equal(t, r.containerResults, points)

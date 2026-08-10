@@ -18,6 +18,7 @@ type Config struct {
 	Username        string
 	Password        string
 	CollectInterval time.Duration
+	Retention       time.Duration
 }
 
 func Load() (Config, error) {
@@ -58,6 +59,15 @@ func Load() (Config, error) {
 		collectInterval = parsed
 	}
 
+	retention := 168 * time.Hour
+	if v := os.Getenv("K2_RETENTION"); v != "" {
+		parsed, err := time.ParseDuration(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid K2_RETENTION: %w", err)
+		}
+		retention = parsed
+	}
+
 	return Config{
 		Port:            port,
 		EnvFile:         envFile,
@@ -67,5 +77,6 @@ func Load() (Config, error) {
 		Username:        os.Getenv("K2_USERNAME"),
 		Password:        os.Getenv("K2_PASSWORD"),
 		CollectInterval: collectInterval,
+		Retention:       retention,
 	}, nil
 }
