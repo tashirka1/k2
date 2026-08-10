@@ -7,9 +7,9 @@ x-logging-template: &default-logging
 
 services:
   app:
-    pid: host
+    pid: host # share host PID namespace so /proc shows host processes for process metrics
     group_add:
-      - 984
+      - 984 # host docker group GID, grants access to /var/run/docker.sock for container metrics
     build:
       dockerfile: ./Dockerfile
     <<: *default-logging
