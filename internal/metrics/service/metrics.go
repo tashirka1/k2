@@ -135,6 +135,10 @@ func (s *Metrics) RunCollector(ctx context.Context, interval time.Duration) erro
 
 	slog.Info("metrics collector started", "interval", interval)
 
+	if err := s.collectTick(ctx); err != nil {
+		slog.Error("initial collector tick failed", "error", err)
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
