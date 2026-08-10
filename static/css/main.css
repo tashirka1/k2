@@ -26,6 +26,10 @@ nav {
     justify-content: space-between;
 }
 
+#period {
+    width: 12rem;
+}
+
 .nav-desktop {
     display: flex;
     gap: 1rem;
