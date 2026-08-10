@@ -49,6 +49,10 @@ func (s *Metrics) QueryChartData(ctx context.Context, metricType string, from, t
 }
 
 func buildChartData(metricType string, points []model.ResourcePoint) model.ChartData {
+	if metricType == "disk" {
+		return buildDiskChartData(points)
+	}
+
 	values := make(map[string]map[string]float64)
 	timestamps := make(map[string]bool)
 
@@ -56,10 +60,7 @@ func buildChartData(metricType string, points []model.ResourcePoint) model.Chart
 		if p.Name != "percent" {
 			continue
 		}
-		label := metricType
-		if metricType == "disk" {
-			label = p.Device
-		}
+		label := chartLabel(metricType)
 		if values[label] == nil {
 			values[label] = make(map[string]float64)
 		}
@@ -93,6 +94,48 @@ func buildChartData(metricType string, points []model.ResourcePoint) model.Chart
 		data.Series = append(data.Series, model.ChartSeries{Label: name, Data: series})
 	}
 	return data
+}
+
+func chartLabel(metricType string) string {
+	switch metricType {
+	case "cpu":
+		return "CPU %"
+	case "ram":
+		return "RAM %"
+	}
+	return metricType
+}
+
+func buildDiskChartData(points []model.ResourcePoint) model.ChartData {
+	usedByTs := make(map[string]float64)
+	totalByTs := make(map[string]float64)
+
+	for _, p := range points {
+		switch p.Name {
+		case "used":
+			usedByTs[p.Timestamp] += p.Value
+		case "total":
+			totalByTs[p.Timestamp] += p.Value
+		}
+	}
+
+	labels := make([]string, 0, len(usedByTs))
+	for ts := range usedByTs {
+		labels = append(labels, ts)
+	}
+	sort.Strings(labels)
+
+	series := make([]*float64, 0, len(labels))
+	for _, ts := range labels {
+		if total := totalByTs[ts]; total > 0 {
+			v := usedByTs[ts] / total * 100
+			series = append(series, &v)
+		} else {
+			series = append(series, nil)
+		}
+	}
+
+	return model.ChartData{Labels: labels, Series: []model.ChartSeries{{Label: "Disk %", Data: series}}}
 }
 
 func (s *Metrics) QueryProcesses(ctx context.Context, from, to time.Time) ([]model.ProcessPoint, error) {

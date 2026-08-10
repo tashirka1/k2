@@ -103,8 +103,7 @@ func TestSearchContainer_NonEmptyUsesSearch(t *testing.T) {
 func TestBuildChartData(t *testing.T) {
 	cpu := 42.5
 	ram := 63.1
-	diskRoot := 55.0
-	diskData := 30.0
+	diskUsed := 50.0
 
 	tests := []struct {
 		name       string
@@ -121,7 +120,7 @@ func TestBuildChartData(t *testing.T) {
 				{Timestamp: "2026-08-02T10:00:00Z", Type: "cpu", Name: "used", Value: 1},
 			},
 			wantLabels: []string{"2026-08-02T10:00:00Z"},
-			wantSeries: []model.ChartSeries{{Label: "cpu", Data: []*float64{&cpu}}},
+			wantSeries: []model.ChartSeries{{Label: "CPU %", Data: []*float64{&cpu}}},
 		},
 		{
 			name:       "ram keeps only percent",
@@ -132,7 +131,7 @@ func TestBuildChartData(t *testing.T) {
 				{Timestamp: "2026-08-02T10:00:00Z", Type: "ram", Name: "used", Value: 4096},
 			},
 			wantLabels: []string{"2026-08-02T10:00:00Z"},
-			wantSeries: []model.ChartSeries{{Label: "ram", Data: []*float64{&ram}}},
+			wantSeries: []model.ChartSeries{{Label: "RAM %", Data: []*float64{&ram}}},
 		},
 		{
 			name:       "no points yields empty non-nil series",
@@ -142,18 +141,16 @@ func TestBuildChartData(t *testing.T) {
 			wantSeries: []model.ChartSeries{},
 		},
 		{
-			name:       "disk series per device",
+			name:       "disk aggregates used/total across devices",
 			metricType: "disk",
 			points: []model.ResourcePoint{
-				{Timestamp: "2026-08-02T10:00:00Z", Type: "disk", Name: "percent", Device: "/", Value: diskRoot},
-				{Timestamp: "2026-08-02T10:00:00Z", Type: "disk", Name: "percent", Device: "/data", Value: diskData},
+				{Timestamp: "2026-08-02T10:00:00Z", Type: "disk", Name: "used", Device: "/", Value: 50},
 				{Timestamp: "2026-08-02T10:00:00Z", Type: "disk", Name: "total", Device: "/", Value: 100},
+				{Timestamp: "2026-08-02T10:00:00Z", Type: "disk", Name: "used", Device: "/data", Value: 25},
+				{Timestamp: "2026-08-02T10:00:00Z", Type: "disk", Name: "total", Device: "/data", Value: 50},
 			},
 			wantLabels: []string{"2026-08-02T10:00:00Z"},
-			wantSeries: []model.ChartSeries{
-				{Label: "/", Data: []*float64{&diskRoot}},
-				{Label: "/data", Data: []*float64{&diskData}},
-			},
+			wantSeries: []model.ChartSeries{{Label: "Disk %", Data: []*float64{&diskUsed}}},
 		},
 	}
 
