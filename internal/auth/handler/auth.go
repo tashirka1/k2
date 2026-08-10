@@ -26,7 +26,7 @@ func NewAuth(s service.AuthService) *Auth {
 func (h *Auth) Root(c echo.Context) error {
 	userId := session.GetUserId(c)
 	if userId != 0 {
-		return c.Redirect(http.StatusSeeOther, "/dashboard")
+		return c.Redirect(http.StatusSeeOther, "/metrics/system")
 	}
 	return core_view.RenderTemplate(c, view.Root())
 }
@@ -34,7 +34,7 @@ func (h *Auth) Root(c echo.Context) error {
 func (h *Auth) GetLogin(c echo.Context) error {
 	userId := session.GetUserId(c)
 	if userId != 0 {
-		return c.Redirect(http.StatusSeeOther, "/dashboard")
+		return c.Redirect(http.StatusSeeOther, "/metrics/system")
 	}
 	return core_view.RenderTemplate(c, view.Login(0))
 }
@@ -74,17 +74,13 @@ func (h *Auth) PostLogin(c echo.Context) error {
 	}
 
 	session.SetUserId(c, 1)
-	c.Response().Header().Set("HX-Redirect", "/dashboard")
+	c.Response().Header().Set("HX-Redirect", "/metrics/system")
 	return nil
 }
 
 func (h *Auth) Logout(c echo.Context) error {
 	session.ClearSession(c)
 	return c.Redirect(http.StatusSeeOther, "/login")
-}
-
-func (h *Auth) Dashboard(c echo.Context) error {
-	return core_view.RenderTemplate(c, view.Dashboard(1))
 }
 
 func SetupHandlers(e *echo.Echo, s service.AuthService) {
@@ -94,5 +90,4 @@ func SetupHandlers(e *echo.Echo, s service.AuthService) {
 	e.GET("/login", h.GetLogin)
 	e.POST("/login", h.PostLogin)
 	e.GET("/logout", h.Logout)
-	e.GET("/dashboard", session.RequireAuth()(h.Dashboard))
 }

@@ -35,18 +35,3 @@ templ Login(userId int) {
 templ LoginError(message string) {
 	<small style="color: var(--pico-color-red-500)">{ message }</small>
 }
-
-templ Dashboard(userId int) {
-	@core_view.Base("Dashboard", userId) {
-		<article>
-			<header><strong>Dashboard</strong></header>
-			<nav>
-				<ul>
-					<li><a href="/metrics/dashboard">Metrics</a></li>
-					<li><a href="/metrics/processes">Processes</a></li>
-					<li><a href="/metrics/containers">Containers</a></li>
-				</ul>
-			</nav>
-		</article>
-	}
-}

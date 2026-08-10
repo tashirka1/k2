@@ -21,8 +21,8 @@ func NewMetrics(s service.MetricsService) *Metrics {
 	return &Metrics{s: s}
 }
 
-func (h *Metrics) Dashboard(c echo.Context) error {
-	return core_view.RenderTemplate(c, view.Dashboard())
+func (h *Metrics) System(c echo.Context) error {
+	return core_view.RenderTemplate(c, view.System())
 }
 
 func (h *Metrics) Processes(c echo.Context) error {
@@ -109,7 +109,7 @@ func SetupHandlers(e *echo.Echo, s service.MetricsService) {
 	h := NewMetrics(s)
 
 	group := e.Group("/metrics", session.RequireAuth())
-	group.GET("/dashboard", h.Dashboard)
+	group.GET("/system", h.System)
 	group.GET("/processes", h.Processes)
 	group.GET("/containers", h.Containers)
 	group.GET("/chart/:type", h.ChartData)
