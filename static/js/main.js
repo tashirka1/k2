@@ -1,4 +1,4 @@
-htmx.config.globalViewTransitions = true;
+htmx.config.globalViewTransitions = false;
 
 var pendingCharts = {};
 
