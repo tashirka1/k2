@@ -31,7 +31,7 @@ func (h *Metrics) Processes(c echo.Context) error {
 		slog.Error("latest processes query failed", "error", err)
 		return c.String(http.StatusInternalServerError, "query failed")
 	}
-	return core_view.RenderTemplate(c, view.ProcessesPage(points))
+	return core_view.RenderTemplate(c, view.ProcessesPage(points, ""))
 }
 
 func (h *Metrics) Containers(c echo.Context) error {
@@ -40,7 +40,7 @@ func (h *Metrics) Containers(c echo.Context) error {
 		slog.Error("latest containers query failed", "error", err)
 		return c.String(http.StatusInternalServerError, "query failed")
 	}
-	return core_view.RenderTemplate(c, view.ContainersPage(points))
+	return core_view.RenderTemplate(c, view.ContainersPage(points, ""))
 }
 
 func parseDuration(s string, defaultVal time.Duration) time.Duration {
@@ -78,6 +78,8 @@ func (h *Metrics) Search(c echo.Context) error {
 	category := c.Param("category")
 
 	ctx := c.Request().Context()
+	isHX := c.Request().Header.Get("HX-Request") != ""
+
 	switch category {
 	case "process":
 		results, err := h.s.SearchProcess(ctx, q)
@@ -85,14 +87,20 @@ func (h *Metrics) Search(c echo.Context) error {
 			slog.Error("search failed", "error", err)
 			return c.String(http.StatusInternalServerError, "search failed")
 		}
-		return core_view.RenderTemplate(c, view.ProcessResults(results))
+		if isHX {
+			return core_view.RenderTemplate(c, view.ProcessResults(results))
+		}
+		return core_view.RenderTemplate(c, view.ProcessesPage(results, q))
 	case "container":
 		results, err := h.s.SearchContainer(ctx, q)
 		if err != nil {
 			slog.Error("search failed", "error", err)
 			return c.String(http.StatusInternalServerError, "search failed")
 		}
-		return core_view.RenderTemplate(c, view.ContainerResults(results))
+		if isHX {
+			return core_view.RenderTemplate(c, view.ContainerResults(results))
+		}
+		return core_view.RenderTemplate(c, view.ContainersPage(results, q))
 	case "resource":
 		results, err := h.s.SearchResource(ctx, q)
 		if err != nil {

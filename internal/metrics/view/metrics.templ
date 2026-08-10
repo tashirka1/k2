@@ -36,11 +36,11 @@ templ System() {
 	}
 }
 
-templ ProcessesPage(points []model.ProcessPoint) {
+templ ProcessesPage(points []model.ProcessPoint, q string) {
 	@core_view.Base("Processes", 1) {
 		<article>
 			<header><strong>Process Monitor</strong></header>
-			<input type="search" name="q" placeholder="Search processes..." hx-get="/metrics/search/process" hx-target="#process-results" hx-trigger="keyup changed delay:300ms"/>
+			<input type="search" name="q" placeholder="Search processes..." value={ q } hx-get="/metrics/search/process" hx-target="#process-results" hx-trigger="keyup changed delay:300ms" hx-push-url="true"/>
 			<div id="process-results">
 				@ProcessResults(points)
 			</div>
@@ -79,11 +79,11 @@ templ ProcessResults(points []model.ProcessPoint) {
 	}
 }
 
-templ ContainersPage(points []model.ContainerPoint) {
+templ ContainersPage(points []model.ContainerPoint, q string) {
 	@core_view.Base("Containers", 1) {
 		<article>
 			<header><strong>Container Monitor</strong></header>
-			<input type="search" name="q" placeholder="Search containers..." hx-get="/metrics/search/container" hx-target="#container-results" hx-trigger="keyup changed delay:300ms"/>
+			<input type="search" name="q" placeholder="Search containers..." value={ q } hx-get="/metrics/search/container" hx-target="#container-results" hx-trigger="keyup changed delay:300ms" hx-push-url="true"/>
 			<div id="container-results">
 				@ContainerResults(points)
 			</div>
