@@ -65,6 +65,7 @@ make dev   # run dev server with autoreload (air)
 Clone repository
 
 ```bash
+cp env-example .env
 make build-bin          # dev binary to bin/k2
 make build-linux-amd64  # static release binary to bin/k2-linux-amd64
 make check              # lint + format + tests
