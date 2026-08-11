@@ -27,6 +27,21 @@ templ Nav() {
 	</nav>
 }
 
+templ NavAnon() {
+	<nav>
+		<ul>
+			<li>
+				<a href="/" class="contrast">
+					<strong>K2</strong>
+				</a>
+			</li>
+		</ul>
+		<ul>
+			<li><a href="/login">Login</a></li>
+		</ul>
+	</nav>
+}
+
 templ Base(title string, userId int) {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -44,7 +59,11 @@ templ Base(title string, userId int) {
 		<body style="padding: 0px 30px">
 			<div id="main">
 				<div class="container">
-					@Nav()
+					if userId != 0 {
+						@Nav()
+					} else {
+						@NavAnon()
+					}
 					<main>
 						<section>
 							{ children... }
