@@ -103,13 +103,6 @@ func startServer(cmd *cobra.Command, _ []string) error {
 	e.HidePort = true
 	e.Logger.SetOutput(io.Discard)
 
-	e.Use(middleware.CSRFWithConfig(middleware.CSRFConfig{
-		TokenLookup:    "header:X-CSRF-Token",
-		CookieName:     "_csrf",
-		CookiePath:     "/",
-		CookieHTTPOnly: true,
-		CookieSameSite: http.SameSiteLaxMode,
-	}))
 	e.Use(middleware.RequestLogger())
 	e.Use(echo_session.Middleware(sessionStore))
 	e.Use(middleware.ContextTimeout(10 * time.Second))
