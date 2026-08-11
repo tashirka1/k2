@@ -13,7 +13,6 @@ type Config struct {
 	Port            string
 	EnvFile         string
 	DBName          string
-	ExternalPort    string
 	SessionKey      string
 	Username        string
 	Password        string
@@ -42,12 +41,7 @@ func Load() (Config, error) {
 
 	dbName := os.Getenv("K2_DB_NAME")
 	if dbName == "" {
-		dbName = "./data/k2.db"
-	}
-
-	externalPort := os.Getenv("K2_EXTERNAL_PORT")
-	if externalPort == "" {
-		externalPort = "9000"
+		dbName = "./db/k2.db"
 	}
 
 	collectInterval := 30 * time.Second
@@ -72,7 +66,6 @@ func Load() (Config, error) {
 		Port:            port,
 		EnvFile:         envFile,
 		DBName:          dbName,
-		ExternalPort:    externalPort,
 		SessionKey:      sessionKey,
 		Username:        os.Getenv("K2_USERNAME"),
 		Password:        os.Getenv("K2_PASSWORD"),
