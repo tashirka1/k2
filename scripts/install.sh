@@ -45,7 +45,7 @@ if [[ ! -f "${ENV_FILE}" ]]; then
 	umask 077
 	cat > "${ENV_FILE}" <<EOF
 K2_SESSION_KEY=$(openssl rand -hex 32)
-K2_PORT=8000
+K2_PORT=9000
 K2_DB_NAME=${DB_FILE}
 K2_USERNAME=admin
 K2_PASSWORD=$(openssl rand -base64 18)
