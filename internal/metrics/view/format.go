@@ -2,7 +2,6 @@ package view
 
 import (
 	"fmt"
-	"net/url"
 
 	"github.com/tashirka1/k2/internal/metrics/model"
 )
@@ -41,8 +40,8 @@ func sortDir(s model.Sort, field string) string {
 	return "asc"
 }
 
-func sortURL(category, q string, s model.Sort, field string) string {
-	return fmt.Sprintf("/metrics/search/%s?q=%s&sort=%s&dir=%s", category, url.QueryEscape(q), field, sortDir(s, field))
+func sortURL(category string, s model.Sort, field string) string {
+	return fmt.Sprintf("/metrics/search/%s?sort=%s&dir=%s", category, field, sortDir(s, field))
 }
 
 func searchURL(category string, s model.Sort) string {
