@@ -46,7 +46,7 @@ func SetUserId(c echo.Context, userId int) {
 		Path:     "/",
 		MaxAge:   60 * 60 * 24 * 7,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
 	}
 	sess.Values[UserIdKey] = userId
