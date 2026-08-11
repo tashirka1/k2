@@ -19,11 +19,9 @@ type MetricsService interface {
 	QueryChartData(ctx context.Context, metricType string, from, to time.Time) (model.ChartData, error)
 	QueryProcesses(ctx context.Context, from, to time.Time) ([]model.ProcessPoint, error)
 	QueryContainers(ctx context.Context, from, to time.Time) ([]model.ContainerPoint, error)
-	QueryLatestProcesses(ctx context.Context) ([]model.ProcessPoint, error)
-	QueryLatestContainers(ctx context.Context) ([]model.ContainerPoint, error)
 	SearchResource(ctx context.Context, query string) ([]model.ResourcePoint, error)
-	SearchProcess(ctx context.Context, query string) ([]model.ProcessPoint, error)
-	SearchContainer(ctx context.Context, query string) ([]model.ContainerPoint, error)
+	SearchProcess(ctx context.Context, query string, s model.Sort) ([]model.ProcessPoint, error)
+	SearchContainer(ctx context.Context, query string, s model.Sort) ([]model.ContainerPoint, error)
 }
 
 type Metrics struct {
@@ -146,30 +144,38 @@ func (s *Metrics) QueryContainers(ctx context.Context, from, to time.Time) ([]mo
 	return s.r.QueryContainers(ctx, from, to)
 }
 
-func (s *Metrics) QueryLatestProcesses(ctx context.Context) ([]model.ProcessPoint, error) {
-	return s.r.QueryLatestProcesses(ctx)
-}
-
-func (s *Metrics) QueryLatestContainers(ctx context.Context) ([]model.ContainerPoint, error) {
-	return s.r.QueryLatestContainers(ctx)
-}
-
 func (s *Metrics) SearchResource(ctx context.Context, query string) ([]model.ResourcePoint, error) {
 	return s.r.SearchResource(ctx, query)
 }
 
-func (s *Metrics) SearchProcess(ctx context.Context, query string) ([]model.ProcessPoint, error) {
+func (s *Metrics) SearchProcess(ctx context.Context, query string, sort model.Sort) ([]model.ProcessPoint, error) {
+	var points []model.ProcessPoint
+	var err error
 	if strings.TrimSpace(query) == "" {
-		return s.r.QueryLatestProcesses(ctx)
+		points, err = s.r.QueryLatestProcesses(ctx)
+	} else {
+		points, err = s.r.SearchProcess(ctx, query)
 	}
-	return s.r.SearchProcess(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	sortProcessPoints(points, sort)
+	return points, nil
 }
 
-func (s *Metrics) SearchContainer(ctx context.Context, query string) ([]model.ContainerPoint, error) {
+func (s *Metrics) SearchContainer(ctx context.Context, query string, sort model.Sort) ([]model.ContainerPoint, error) {
+	var points []model.ContainerPoint
+	var err error
 	if strings.TrimSpace(query) == "" {
-		return s.r.QueryLatestContainers(ctx)
+		points, err = s.r.QueryLatestContainers(ctx)
+	} else {
+		points, err = s.r.SearchContainer(ctx, query)
 	}
-	return s.r.SearchContainer(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	sortContainerPoints(points, sort)
+	return points, nil
 }
 
 func (s *Metrics) RunCollector(ctx context.Context, interval time.Duration) error {

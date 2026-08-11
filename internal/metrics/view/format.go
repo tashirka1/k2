@@ -1,6 +1,11 @@
 package view
 
-import "fmt"
+import (
+	"fmt"
+	"net/url"
+
+	"github.com/tashirka1/k2/internal/metrics/model"
+)
 
 func formatBytes(b int64) string {
 	switch {
@@ -13,4 +18,50 @@ func formatBytes(b int64) string {
 	default:
 		return fmt.Sprintf("%d B", b)
 	}
+}
+
+func isNumericField(field string) bool {
+	switch field {
+	case "pid", "cpu", "ram", "ram_bytes":
+		return true
+	}
+	return false
+}
+
+func sortDir(s model.Sort, field string) string {
+	if s.Field == field {
+		if s.Desc {
+			return "asc"
+		}
+		return "desc"
+	}
+	if isNumericField(field) {
+		return "desc"
+	}
+	return "asc"
+}
+
+func sortURL(category, q string, s model.Sort, field string) string {
+	return fmt.Sprintf("/metrics/search/%s?q=%s&sort=%s&dir=%s", category, url.QueryEscape(q), field, sortDir(s, field))
+}
+
+func searchURL(category string, s model.Sort) string {
+	u := "/metrics/search/" + category
+	if s.Field != "" {
+		u += "?sort=" + s.Field
+		if s.Desc {
+			u += "&dir=desc"
+		}
+	}
+	return u
+}
+
+func sortIndicator(s model.Sort, field string) string {
+	if s.Field != field {
+		return ""
+	}
+	if s.Desc {
+		return " ▼"
+	}
+	return " ▲"
 }

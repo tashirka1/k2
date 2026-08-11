@@ -7,6 +7,7 @@ import (
 
 	"github.com/tashirka1/k2/internal/core/session"
 	core_view "github.com/tashirka1/k2/internal/core/view"
+	"github.com/tashirka1/k2/internal/metrics/model"
 	"github.com/tashirka1/k2/internal/metrics/service"
 	"github.com/tashirka1/k2/internal/metrics/view"
 
@@ -25,22 +26,30 @@ func (h *Metrics) System(c echo.Context) error {
 	return core_view.RenderTemplate(c, view.System())
 }
 
+func parseSort(c echo.Context) model.Sort {
+	return model.Sort{Field: c.QueryParam("sort"), Desc: c.QueryParam("dir") == "desc"}
+}
+
 func (h *Metrics) Processes(c echo.Context) error {
-	points, err := h.s.QueryLatestProcesses(c.Request().Context())
+	q := c.QueryParam("q")
+	s := parseSort(c)
+	points, err := h.s.SearchProcess(c.Request().Context(), q, s)
 	if err != nil {
-		slog.Error("latest processes query failed", "error", err)
+		slog.Error("processes query failed", "error", err)
 		return c.String(http.StatusInternalServerError, "query failed")
 	}
-	return core_view.RenderTemplate(c, view.ProcessesPage(points, ""))
+	return core_view.RenderTemplate(c, view.ProcessesPage(points, q, s))
 }
 
 func (h *Metrics) Containers(c echo.Context) error {
-	points, err := h.s.QueryLatestContainers(c.Request().Context())
+	q := c.QueryParam("q")
+	s := parseSort(c)
+	points, err := h.s.SearchContainer(c.Request().Context(), q, s)
 	if err != nil {
-		slog.Error("latest containers query failed", "error", err)
+		slog.Error("containers query failed", "error", err)
 		return c.String(http.StatusInternalServerError, "query failed")
 	}
-	return core_view.RenderTemplate(c, view.ContainersPage(points, ""))
+	return core_view.RenderTemplate(c, view.ContainersPage(points, q, s))
 }
 
 func parseDuration(s string, defaultVal time.Duration) time.Duration {
@@ -76,31 +85,32 @@ func (h *Metrics) ChartData(c echo.Context) error {
 func (h *Metrics) Search(c echo.Context) error {
 	q := c.QueryParam("q")
 	category := c.Param("category")
+	s := parseSort(c)
 
 	ctx := c.Request().Context()
 	isHX := c.Request().Header.Get("HX-Request") != ""
 
 	switch category {
 	case "process":
-		results, err := h.s.SearchProcess(ctx, q)
+		results, err := h.s.SearchProcess(ctx, q, s)
 		if err != nil {
 			slog.Error("search failed", "error", err)
 			return c.String(http.StatusInternalServerError, "search failed")
 		}
 		if isHX {
-			return core_view.RenderTemplate(c, view.ProcessResults(results))
+			return core_view.RenderTemplate(c, view.ProcessResults(results, q, s))
 		}
-		return core_view.RenderTemplate(c, view.ProcessesPage(results, q))
+		return core_view.RenderTemplate(c, view.ProcessesPage(results, q, s))
 	case "container":
-		results, err := h.s.SearchContainer(ctx, q)
+		results, err := h.s.SearchContainer(ctx, q, s)
 		if err != nil {
 			slog.Error("search failed", "error", err)
 			return c.String(http.StatusInternalServerError, "search failed")
 		}
 		if isHX {
-			return core_view.RenderTemplate(c, view.ContainerResults(results))
+			return core_view.RenderTemplate(c, view.ContainerResults(results, q, s))
 		}
-		return core_view.RenderTemplate(c, view.ContainersPage(results, q))
+		return core_view.RenderTemplate(c, view.ContainersPage(results, q, s))
 	case "resource":
 		results, err := h.s.SearchResource(ctx, q)
 		if err != nil {

@@ -26,6 +26,11 @@ type ContainerPoint struct {
 	RAMBytes  int64
 }
 
+type Sort struct {
+	Field string
+	Desc  bool
+}
+
 type ChartSeries struct {
 	Label string     `json:"label"`
 	Data  []*float64 `json:"data"`
