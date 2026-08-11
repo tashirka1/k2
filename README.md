@@ -42,6 +42,8 @@ Re-running the script updates the binary without touching your config or data.
 
 ### Docker
 
+Clone repository
+
 ```bash
 cp env-example .env
 make up
@@ -51,12 +53,16 @@ The container runs on port 8000, mapped to the host via `K2_EXTERNAL_PORT` (defa
 
 ## Development
 
+Clone repository
+
 ```bash
 cp env-example .env
 make dev   # run dev server with autoreload (air)
 ```
 
 ## Build
+
+Clone repository
 
 ```bash
 make build-bin          # dev binary to bin/k2
