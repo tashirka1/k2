@@ -14,21 +14,23 @@ templ Root() {
 
 templ Login(userId int) {
 	@core_view.Base("K2 Monitor", userId) {
-		<article>
-			<header><strong>Login</strong></header>
-			<div id="errors"></div>
-			<form hx-post="/login" hx-target="#main" hx-swap="outerHTML">
-				<label>
-					Username
-					<input type="text" name="username" placeholder="username" required/>
-				</label>
-				<label>
-					Password
-					<input type="password" name="password" placeholder="password" required/>
-				</label>
-				<button type="submit">Sign In</button>
-			</form>
-		</article>
+		<div class="grid">
+			<article style="margin: auto">
+				<header><strong>Login</strong></header>
+				<div id="errors"></div>
+				<form hx-post="/login" hx-target="#main" hx-swap="outerHTML">
+					<label>
+						Username
+						<input type="text" name="username" placeholder="username" required/>
+					</label>
+					<label>
+						Password
+						<input type="password" name="password" placeholder="password" required/>
+					</label>
+					<button type="submit">Sign In</button>
+				</form>
+			</article>
+		</div>
 	}
 }
 
