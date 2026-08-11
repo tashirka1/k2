@@ -2,6 +2,29 @@
 
 Server monitoring tool for processes, containers, and system metrics. Built with Go + Echo, htmx + templ + PicoCSS, SQLite.
 
+## Table of Contents
+
+- [Features](#features)
+- [Install](#install)
+  - [Bare-metal (systemd)](#bare-metal-systemd)
+  - [Docker](#docker)
+- [Development](#development)
+- [Build](#build)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Screenshots](#screenshots)
+- [Donate](#donate)
+
+## Features
+
+- Real-time metrics for **system** (CPU, memory, disk, network), **processes**, and **containers** (via Docker API)
+- Live-updating web UI powered by htmx and Chart.js, with a responsive PicoCSS layout
+- SQLite storage with metrics retention and automatic purge
+- Admin authentication with login form, session cookies, and account lockout after failed attempts
+- One-line **standalone binary** installation (`curl | sudo bash`) with a systemd service
+- Runs as a **single static binary without CGO** — no runtime dependencies, works on minimal hardware
+- Deployable via bare-metal systemd or Docker Compose
+
 ## Install
 
 ### Bare-metal (systemd)
@@ -59,3 +82,15 @@ Create a `.env` file in the project root (see `env-example`):
 ## Usage
 
 `k2` — start the server. `k2 credentials` — print the admin username and password.
+
+## Screenshots
+
+![K2 system dashboard](screenshots/system.png)
+
+![K2 processes dashboard](screenshots/processes.png)
+
+![K2 containers dashboard](screenshots/containers.png)
+
+## Donate
+
+Support the project on [Boosty](https://boosty.to/tashirka1).
