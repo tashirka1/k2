@@ -7,7 +7,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/tashirka1/k2/internal/auth/model"
+	"github.com/tashirka1/k2/internal/auth/storage"
 )
+
+var _ storage.AuthStorage = (*mockStorage)(nil)
 
 type mockStorage struct {
 	user        model.AuthUser
@@ -72,64 +75,60 @@ func (m *mockStorage) UpsertUser(_ context.Context, username, password string) e
 	return nil
 }
 
-func TestCheckLogin_Success(t *testing.T) {
-	r := &mockStorage{
-		user: model.AuthUser{Username: "admin", Password: "secret", LoginAttempts: 0},
+func TestCheckLogin(t *testing.T) {
+	now := time.Now()
+
+	tests := []struct {
+		name     string
+		userErr  error
+		wantErr  error
+		password string
+		user     model.AuthUser
+		wantID   int
+	}{
+		{
+			name:     "success returns user id",
+			user:     model.AuthUser{ID: 7, Username: "admin", Password: "secret"},
+			password: "secret",
+			wantID:   7,
+		},
+		{
+			name:     "wrong password",
+			user:     model.AuthUser{ID: 7, Username: "admin", Password: "secret"},
+			password: "wrong",
+			wantErr:  model.ErrInvalidLogin,
+		},
+		{
+			name:     "user not found",
+			userErr:  model.ErrNotFound,
+			password: "secret",
+			wantErr:  model.ErrInvalidLogin,
+		},
+		{
+			name:     "locked out",
+			user:     model.AuthUser{ID: 7, Username: "admin", Password: "secret", LockedUntil: now.Add(5 * time.Minute).Format(time.RFC3339), LoginAttempts: 3},
+			password: "secret",
+			wantErr:  model.ErrLockedOut,
+		},
+		{
+			name:     "lockout expired",
+			user:     model.AuthUser{ID: 7, Username: "admin", Password: "secret", LockedUntil: now.Add(-1 * time.Minute).Format(time.RFC3339), LoginAttempts: 3},
+			password: "secret",
+			wantID:   7,
+		},
 	}
-	s := NewAuth(r)
 
-	ok, err := s.CheckLogin(context.Background(), "admin", "secret", time.Now())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &mockStorage{user: tt.user, userErr: tt.userErr}
+			s := NewAuth(r)
 
-	assert.NoError(t, err)
-	assert.True(t, ok)
-}
+			id, err := s.CheckLogin(context.Background(), "admin", tt.password, now)
 
-func TestCheckLogin_WrongPassword(t *testing.T) {
-	r := &mockStorage{
-		user: model.AuthUser{Username: "admin", Password: "secret", LoginAttempts: 0},
+			assert.Equal(t, tt.wantID, id)
+			assert.ErrorIs(t, err, tt.wantErr)
+		})
 	}
-	s := NewAuth(r)
-
-	ok, err := s.CheckLogin(context.Background(), "admin", "wrong", time.Now())
-
-	assert.ErrorIs(t, err, model.ErrInvalidLogin)
-	assert.False(t, ok)
-}
-
-func TestCheckLogin_UserNotFound(t *testing.T) {
-	r := &mockStorage{userErr: model.ErrNotFound}
-	s := NewAuth(r)
-
-	ok, err := s.CheckLogin(context.Background(), "nobody", "pwd", time.Now())
-
-	assert.ErrorIs(t, err, model.ErrInvalidLogin)
-	assert.False(t, ok)
-}
-
-func TestCheckLogin_Lockout(t *testing.T) {
-	lockedUntil := time.Now().Add(5 * time.Minute)
-	r := &mockStorage{
-		user: model.AuthUser{Username: "admin", Password: "secret", LockedUntil: lockedUntil.Format(time.RFC3339), LoginAttempts: 3},
-	}
-	s := NewAuth(r)
-
-	ok, err := s.CheckLogin(context.Background(), "admin", "secret", time.Now())
-
-	assert.ErrorIs(t, err, model.ErrLockedOut)
-	assert.False(t, ok)
-}
-
-func TestCheckLogin_LockoutExpired(t *testing.T) {
-	lockedUntil := time.Now().Add(-1 * time.Minute)
-	r := &mockStorage{
-		user: model.AuthUser{Username: "admin", Password: "secret", LockedUntil: lockedUntil.Format(time.RFC3339), LoginAttempts: 3},
-	}
-	s := NewAuth(r)
-
-	ok, err := s.CheckLogin(context.Background(), "admin", "secret", time.Now())
-
-	assert.NoError(t, err)
-	assert.True(t, ok)
 }
 
 func TestCheckLogin_FailedAttemptsIncremented(t *testing.T) {
@@ -141,80 +140,111 @@ func TestCheckLogin_FailedAttemptsIncremented(t *testing.T) {
 	_, _ = s.CheckLogin(context.Background(), "admin", "wrong", time.Now())
 	_, _ = s.CheckLogin(context.Background(), "admin", "wrong", time.Now())
 	_, _ = s.CheckLogin(context.Background(), "admin", "wrong", time.Now())
-	ok, err := s.CheckLogin(context.Background(), "admin", "wrong", time.Now())
+	id, err := s.CheckLogin(context.Background(), "admin", "wrong", time.Now())
 
+	assert.Equal(t, 0, id)
 	assert.ErrorIs(t, err, model.ErrLockedOut)
-	assert.False(t, ok)
 }
 
-func TestGetCredentials_Success(t *testing.T) {
-	r := &mockStorage{
-		firstUser:   model.AuthUser{Username: "admin", Password: "pass"},
-		firstUserOK: true,
+func TestGetCredentials(t *testing.T) {
+	tests := []struct {
+		want        model.Credentials
+		name        string
+		wantErr     error
+		firstUser   model.AuthUser
+		firstUserOK bool
+	}{
+		{
+			name:        "success",
+			firstUser:   model.AuthUser{Username: "admin", Password: "pass"},
+			firstUserOK: true,
+			want:        model.Credentials{Username: "admin", Password: "pass"},
+		},
+		{
+			name:    "not found",
+			wantErr: model.ErrNotFound,
+		},
 	}
-	s := NewAuth(r)
 
-	user, pass, err := s.GetCredentials(context.Background())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &mockStorage{firstUser: tt.firstUser, firstUserOK: tt.firstUserOK}
+			s := NewAuth(r)
 
-	assert.NoError(t, err)
-	assert.Equal(t, "admin", user)
-	assert.Equal(t, "pass", pass)
-}
+			creds, err := s.GetCredentials(context.Background())
 
-func TestGetCredentials_NotFound(t *testing.T) {
-	r := &mockStorage{firstUserOK: false}
-	s := NewAuth(r)
-
-	_, _, err := s.GetCredentials(context.Background())
-
-	assert.ErrorIs(t, err, model.ErrNotFound)
-}
-
-func TestEnsureCredentials_FirstStart(t *testing.T) {
-	r := &mockStorage{existsOK: false}
-	s := NewAuth(r)
-
-	username, password, err := s.EnsureCredentials(context.Background(), "", "")
-
-	assert.NoError(t, err)
-	assert.Contains(t, username, "-")
-	assert.Len(t, password, 16)
-}
-
-func TestEnsureCredentials_AlreadyExists(t *testing.T) {
-	r := &mockStorage{
-		existsOK:    true,
-		firstUser:   model.AuthUser{Username: "admin", Password: "pass"},
-		firstUserOK: true,
+			assert.Equal(t, tt.want, creds)
+			assert.ErrorIs(t, err, tt.wantErr)
+		})
 	}
-	s := NewAuth(r)
-
-	user, pass, err := s.EnsureCredentials(context.Background(), "", "")
-
-	assert.NoError(t, err)
-	assert.Equal(t, "admin", user)
-	assert.Equal(t, "pass", pass)
 }
 
-func TestEnsureCredentials_Configured(t *testing.T) {
-	r := &mockStorage{}
-	s := NewAuth(r)
+func TestEnsureCredentials(t *testing.T) {
+	tests := []struct {
+		want          model.Credentials
+		name          string
+		cfgUsername   string
+		cfgPassword   string
+		upsertErr     error
+		createErr     error
+		wantErr       error
+		firstUser     model.AuthUser
+		existsOK      bool
+		firstUserOK   bool
+		wantGenerated bool
+	}{
+		{
+			name:        "configured uses env credentials",
+			cfgUsername: "operator",
+			cfgPassword: "s3cret",
+			want:        model.Credentials{Username: "operator", Password: "s3cret"},
+		},
+		{
+			name:        "configured upsert error",
+			cfgUsername: "operator",
+			cfgPassword: "s3cret",
+			upsertErr:   assert.AnError,
+			wantErr:     assert.AnError,
+		},
+		{
+			name:          "first start generates credentials",
+			wantGenerated: true,
+		},
+		{
+			name:      "create error on first start",
+			createErr: assert.AnError,
+			wantErr:   assert.AnError,
+		},
+		{
+			name:        "already exists returns stored credentials",
+			existsOK:    true,
+			firstUser:   model.AuthUser{Username: "admin", Password: "pass"},
+			firstUserOK: true,
+			want:        model.Credentials{Username: "admin", Password: "pass"},
+		},
+	}
 
-	user, pass, err := s.EnsureCredentials(context.Background(), "operator", "s3cret")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &mockStorage{
+				existsOK:    tt.existsOK,
+				firstUser:   tt.firstUser,
+				firstUserOK: tt.firstUserOK,
+				upsertErr:   tt.upsertErr,
+				createErr:   tt.createErr,
+			}
+			s := NewAuth(r)
 
-	assert.NoError(t, err)
-	assert.Equal(t, "operator", user)
-	assert.Equal(t, "s3cret", pass)
-	assert.Equal(t, "operator", r.user.Username)
-	assert.Equal(t, "s3cret", r.user.Password)
-}
+			creds, err := s.EnsureCredentials(context.Background(), tt.cfgUsername, tt.cfgPassword)
 
-func TestEnsureCredentials_ConfiguredError(t *testing.T) {
-	r := &mockStorage{upsertErr: assert.AnError}
-	s := NewAuth(r)
-
-	_, _, err := s.EnsureCredentials(context.Background(), "operator", "s3cret")
-
-	assert.ErrorIs(t, err, assert.AnError)
-	assert.Empty(t, r.user.Username)
+			if tt.wantGenerated {
+				assert.NoError(t, err)
+				assert.Contains(t, creds.Username, "-")
+				assert.Len(t, creds.Password, 16)
+				return
+			}
+			assert.Equal(t, tt.want, creds)
+			assert.ErrorIs(t, err, tt.wantErr)
+		})
+	}
 }

@@ -7,7 +7,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/tashirka1/k2/internal/metrics/model"
+	"github.com/tashirka1/k2/internal/metrics/storage"
 )
+
+var _ storage.MetricsStorage = (*mockMetricsStorage)(nil)
 
 type mockMetricsStorage struct {
 	latestProcesses   []model.ProcessPoint

@@ -16,3 +16,8 @@ type AuthUser struct {
 	ID            int
 	LoginAttempts int
 }
+
+type Credentials struct {
+	Username string
+	Password string
+}

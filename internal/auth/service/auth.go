@@ -13,9 +13,9 @@ import (
 )
 
 type AuthService interface {
-	EnsureCredentials(ctx context.Context, cfgUsername string, cfgPassword string) (username string, password string, err error)
-	CheckLogin(ctx context.Context, username string, password string, now time.Time) (bool, error)
-	GetCredentials(ctx context.Context) (username string, password string, err error)
+	EnsureCredentials(ctx context.Context, cfgUsername string, cfgPassword string) (model.Credentials, error)
+	CheckLogin(ctx context.Context, username string, password string, now time.Time) (int, error)
+	GetCredentials(ctx context.Context) (model.Credentials, error)
 }
 
 type Auth struct {
@@ -26,16 +26,16 @@ func NewAuth(r storage.AuthStorage) *Auth {
 	return &Auth{r: r}
 }
 
-func (s *Auth) EnsureCredentials(ctx context.Context, cfgUsername string, cfgPassword string) (string, string, error) {
+func (s *Auth) EnsureCredentials(ctx context.Context, cfgUsername string, cfgPassword string) (model.Credentials, error) {
 	if cfgUsername != "" && cfgPassword != "" {
 		if err := s.r.UpsertUser(ctx, cfgUsername, cfgPassword); err != nil {
-			return "", "", fmt.Errorf("create initial user: %w", err)
+			return model.Credentials{}, fmt.Errorf("create initial user: %w", err)
 		}
-		return cfgUsername, cfgPassword, nil
+		return model.Credentials{Username: cfgUsername, Password: cfgPassword}, nil
 	}
 	exists, err := s.r.UserExists(ctx)
 	if err != nil {
-		return "", "", err
+		return model.Credentials{}, err
 	}
 	if exists {
 		return s.GetCredentials(ctx)
@@ -43,34 +43,34 @@ func (s *Auth) EnsureCredentials(ctx context.Context, cfgUsername string, cfgPas
 	return s.createCredentials(ctx)
 }
 
-func (s *Auth) createCredentials(ctx context.Context) (string, string, error) {
+func (s *Auth) createCredentials(ctx context.Context) (model.Credentials, error) {
 	username, err := randomWords(2)
 	if err != nil {
-		return "", "", fmt.Errorf("generate username: %w", err)
+		return model.Credentials{}, fmt.Errorf("generate username: %w", err)
 	}
 	password, err := randomPassword(16)
 	if err != nil {
-		return "", "", fmt.Errorf("generate password: %w", err)
+		return model.Credentials{}, fmt.Errorf("generate password: %w", err)
 	}
 	if err := s.r.CreateInitialUser(ctx, username, password); err != nil {
-		return "", "", fmt.Errorf("create initial user: %w", err)
+		return model.Credentials{}, fmt.Errorf("create initial user: %w", err)
 	}
-	return username, password, nil
+	return model.Credentials{Username: username, Password: password}, nil
 }
 
-func (s *Auth) CheckLogin(ctx context.Context, username string, password string, now time.Time) (bool, error) {
+func (s *Auth) CheckLogin(ctx context.Context, username string, password string, now time.Time) (int, error) {
 	user, err := s.r.GetUser(ctx, username)
 	if err != nil {
 		if errors.Is(err, model.ErrNotFound) {
-			return false, model.ErrInvalidLogin
+			return 0, model.ErrInvalidLogin
 		}
-		return false, err
+		return 0, err
 	}
 
 	if user.LockedUntil != "" {
 		lockedUntil, err := time.Parse(time.RFC3339, user.LockedUntil)
 		if err == nil && now.Before(lockedUntil) {
-			return false, model.ErrLockedOut
+			return 0, model.ErrLockedOut
 		}
 	}
 
@@ -82,23 +82,23 @@ func (s *Auth) CheckLogin(ctx context.Context, username string, password string,
 			lockedUntil = &t
 		}
 		if err := s.r.UpdateAttempts(ctx, username, attempts, lockedUntil); err != nil {
-			return false, err
+			return 0, err
 		}
-		return false, model.ErrInvalidLogin
+		return 0, model.ErrInvalidLogin
 	}
 
 	if err := s.r.ResetAttempts(ctx, username); err != nil {
-		return false, err
+		return 0, err
 	}
-	return true, nil
+	return user.ID, nil
 }
 
-func (s *Auth) GetCredentials(ctx context.Context) (string, string, error) {
+func (s *Auth) GetCredentials(ctx context.Context) (model.Credentials, error) {
 	user, err := s.r.GetFirstUser(ctx)
 	if err != nil {
-		return "", "", err
+		return model.Credentials{}, err
 	}
-	return user.Username, user.Password, nil
+	return model.Credentials{Username: user.Username, Password: user.Password}, nil
 }
 
 var wordList = []string{

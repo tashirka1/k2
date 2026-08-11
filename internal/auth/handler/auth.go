@@ -54,7 +54,7 @@ func (h *Auth) PostLogin(c echo.Context) error {
 		return core_view.RenderTemplate(c, view.LoginError("password is required"))
 	}
 
-	ok, err := h.s.CheckLogin(c.Request().Context(), username, password, time.Now())
+	userId, err := h.s.CheckLogin(c.Request().Context(), username, password, time.Now())
 	if err != nil {
 		c.Response().Header().Set("HX-Retarget", "#errors")
 		c.Response().Header().Set("HX-Reswap", "innerHTML")
@@ -67,13 +67,8 @@ func (h *Auth) PostLogin(c echo.Context) error {
 		slog.Error("login error", "error", err)
 		return core_view.RenderTemplate(c, view.LoginError("internal error"))
 	}
-	if !ok {
-		c.Response().Header().Set("HX-Retarget", "#errors")
-		c.Response().Header().Set("HX-Reswap", "innerHTML")
-		return core_view.RenderTemplate(c, view.LoginError("invalid username or password"))
-	}
 
-	session.SetUserId(c, 1)
+	session.SetUserId(c, userId)
 	c.Response().Header().Set("HX-Redirect", "/metrics/system")
 	return nil
 }

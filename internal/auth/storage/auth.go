@@ -63,9 +63,10 @@ func (r *Auth) GetFirstUser(ctx context.Context) (model.AuthUser, error) {
 }
 
 func (r *Auth) UpdateAttempts(ctx context.Context, username string, attempts int, lockedUntil *time.Time) error {
-	var lu interface{}
+	var lu *string
 	if lockedUntil != nil {
-		lu = lockedUntil.Format(time.RFC3339)
+		s := lockedUntil.Format(time.RFC3339)
+		lu = &s
 	}
 	_, err := r.db.ExecContext(ctx, "UPDATE auth_user SET login_attempts = ?, locked_until = ? WHERE username = ?", attempts, lu, username)
 	return err

@@ -70,13 +70,13 @@ func main() {
 			authStrg := auth_storage.NewAuth(database)
 			authSvc := auth_service.NewAuth(authStrg)
 
-			username, password, err := authSvc.EnsureCredentials(cmd.Context(), cfg.Username, cfg.Password)
+			creds, err := authSvc.EnsureCredentials(cmd.Context(), cfg.Username, cfg.Password)
 			if err != nil {
 				return fmt.Errorf("ensure credentials: %w", err)
 			}
 
-			fmt.Printf("Username:  %s\n", username)
-			fmt.Printf("Password:  %s\n", password)
+			fmt.Printf("Username:  %s\n", creds.Username)
+			fmt.Printf("Password:  %s\n", creds.Password)
 			return nil
 		},
 	}
@@ -121,7 +121,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 	authStrg := auth_storage.NewAuth(database)
 	authSvc := auth_service.NewAuth(authStrg)
 
-	username, password, err := authSvc.EnsureCredentials(cmd.Context(), cfg.Username, cfg.Password)
+	creds, err := authSvc.EnsureCredentials(cmd.Context(), cfg.Username, cfg.Password)
 	if err != nil {
 		return fmt.Errorf("ensure credentials: %w", err)
 	}
@@ -129,8 +129,8 @@ func startServer(cmd *cobra.Command, _ []string) error {
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Println("  K2 Server Monitor")
 	fmt.Println(strings.Repeat("=", 60))
-	fmt.Printf("  Username:  %s\n", username)
-	fmt.Printf("  Password:  %s\n", password)
+	fmt.Printf("  Username:  %s\n", creds.Username)
+	fmt.Printf("  Password:  %s\n", creds.Password)
 	fmt.Println(strings.Repeat("=", 60))
 
 	auth_handler.SetupHandlers(e, authSvc)
