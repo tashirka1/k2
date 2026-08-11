@@ -21,12 +21,12 @@ services:
       - "./db:/app/db"
     ports:
       - "${K2_EXTERNAL_PORT:-9000}:${K2_PORT:-8000}"
-    # deploy:
-    #   resources:
-    #     limits:
-    #       memory: 64M
-    #     reservations:
-    #       memory: 32M
+    deploy:
+      resources:
+        limits:
+          memory: 48M
+        reservations:
+          memory: 24M
     healthcheck:
       test:
         [
