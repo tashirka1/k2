@@ -16,6 +16,10 @@ build:
 build-bin:
 	@go tool templ generate && go build -ldflags="-s -w" -o bin/k2 cmd/k2/main.go
 
+.PHONY: build-linux-amd64
+build-linux-amd64:
+	@go tool templ generate && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/k2-linux-amd64 cmd/k2/main.go
+
 .PHONY: lint
 lint:
 	@go tool templ generate && go fmt ./... && golangci-lint run ./...
