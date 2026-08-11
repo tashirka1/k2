@@ -26,7 +26,7 @@ import (
 	metrics_storage "github.com/tashirka1/k2/internal/metrics/storage"
 
 	"github.com/gorilla/sessions"
-	echosession "github.com/labstack/echo-contrib/session"
+	echo_session "github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/moby/moby/client"
@@ -111,7 +111,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		CookieSameSite: http.SameSiteLaxMode,
 	}))
 	e.Use(middleware.RequestLogger())
-	e.Use(echosession.Middleware(sessionStore))
+	e.Use(echo_session.Middleware(sessionStore))
 	e.Use(middleware.ContextTimeout(10 * time.Second))
 	e.Pre(middleware.RemoveTrailingSlash())
 	e.StaticFS("/static", echo.MustSubFS(k2.EmbeddedStatic, "static"))
