@@ -17,7 +17,6 @@ templ Login(userId int) {
 		<div class="grid">
 			<article style="margin: auto">
 				<header><strong>Login</strong></header>
-				<div id="errors"></div>
 				<form hx-post="/login" hx-target="#main" hx-swap="outerHTML">
 					<label>
 						Username
@@ -29,11 +28,12 @@ templ Login(userId int) {
 					</label>
 					<button type="submit">Sign In</button>
 				</form>
+				<div id="errors"></div>
 			</article>
 		</div>
 	}
 }
 
 templ LoginError(message string) {
-	<small style="color: var(--pico-color-red-500)">{ message }</small>
+	<small style="color: red">{ message }</small>
 }
