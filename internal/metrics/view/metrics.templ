@@ -1,0 +1,150 @@
+package view
+
+import (
+	"strconv"
+
+	core_view "github.com/tashirka1/k2/internal/core/view"
+	"github.com/tashirka1/k2/internal/metrics/model"
+)
+
+templ System() {
+	@core_view.Base("System", 1) {
+		<article>
+			<header><strong>System Monitor</strong></header>
+			<select id="period" aria-label="Chart period">
+				<option value="1h">1 hour</option>
+				<option value="6h">6 hours</option>
+				<option value="24h">24 hours</option>
+				<option value="168h">7 days</option>
+				<option value="720h">1 month</option>
+			</select>
+			<div class="grid">
+				<div>
+					<h3>CPU %</h3>
+					<canvas id="cpuChart" width="400" height="200"></canvas>
+				</div>
+				<div>
+					<h3>RAM %</h3>
+					<canvas id="ramChart" width="400" height="200"></canvas>
+				</div>
+				<div>
+					<h3>Disk %</h3>
+					<canvas id="diskChart" width="400" height="200"></canvas>
+				</div>
+			</div>
+		</article>
+	}
+}
+
+templ ProcessesPage(points []model.ProcessPoint, q string, s model.Sort) {
+	@core_view.Base("Processes", 1) {
+		<article>
+			<header><strong>Process Monitor</strong></header>
+			<input type="search" name="q" placeholder="Search processes..." value={ q } hx-get={ searchURL("process", s) } hx-target="#process-results" hx-swap="outerHTML" hx-trigger="keyup changed delay:300ms" hx-push-url="true"/>
+			@ProcessResults(points, q, s)
+		</article>
+	}
+}
+
+templ ProcessResults(points []model.ProcessPoint, q string, s model.Sort) {
+	<div id="process-results" hx-get={ searchURL("process", s) } hx-trigger="every 5s" hx-include="[name='q']" hx-target="#process-results" hx-swap="outerHTML">
+		if len(points) == 0 {
+			<small>No processes found</small>
+		} else {
+			<div style="overflow-x: auto">
+				<table>
+					<thead>
+						<tr>
+							<th><a hx-get={ sortURL("process", s, "pid") } hx-target="#process-results" hx-swap="outerHTML" hx-push-url="true">PID{ sortIndicator(s, "pid") }</a></th>
+							<th><a hx-get={ sortURL("process", s, "name") } hx-target="#process-results" hx-swap="outerHTML" hx-push-url="true">Name{ sortIndicator(s, "name") }</a></th>
+							<th><a hx-get={ sortURL("process", s, "cpu") } hx-target="#process-results" hx-swap="outerHTML" hx-push-url="true">CPU %{ sortIndicator(s, "cpu") }</a></th>
+							<th><a hx-get={ sortURL("process", s, "ram") } hx-target="#process-results" hx-swap="outerHTML" hx-push-url="true">RAM %{ sortIndicator(s, "ram") }</a></th>
+							<th><a hx-get={ sortURL("process", s, "ram_bytes") } hx-target="#process-results" hx-swap="outerHTML" hx-push-url="true">RAM Used{ sortIndicator(s, "ram_bytes") }</a></th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, p := range points {
+							<tr>
+								<td>{ p.PID }</td>
+								<td>{ p.Name }</td>
+								<td>{ strconv.FormatFloat(p.CPU, 'f', 1, 64) }</td>
+								<td>{ strconv.FormatFloat(p.RAM, 'f', 1, 64) }</td>
+								<td>{ formatBytes(p.RAMBytes) }</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+	</div>
+}
+
+templ ContainersPage(points []model.ContainerPoint, q string, s model.Sort) {
+	@core_view.Base("Containers", 1) {
+		<article>
+			<header><strong>Container Monitor</strong></header>
+			<input type="search" name="q" placeholder="Search containers..." value={ q } hx-get={ searchURL("container", s) } hx-target="#container-results" hx-swap="outerHTML" hx-trigger="keyup changed delay:300ms" hx-push-url="true"/>
+			@ContainerResults(points, q, s)
+		</article>
+	}
+}
+
+templ ContainerResults(points []model.ContainerPoint, q string, s model.Sort) {
+	<div id="container-results" hx-get={ searchURL("container", s) } hx-trigger="every 5s" hx-include="[name='q']" hx-target="#container-results" hx-swap="outerHTML">
+		if len(points) == 0 {
+			<small>No containers found</small>
+		} else {
+			<div style="overflow-x: auto">
+				<table>
+					<thead>
+						<tr>
+							<th><a hx-get={ sortURL("container", s, "name") } hx-target="#container-results" hx-swap="outerHTML" hx-push-url="true">Name{ sortIndicator(s, "name") }</a></th>
+							<th><a hx-get={ sortURL("container", s, "image") } hx-target="#container-results" hx-swap="outerHTML" hx-push-url="true">Image{ sortIndicator(s, "image") }</a></th>
+							<th><a hx-get={ sortURL("container", s, "cpu") } hx-target="#container-results" hx-swap="outerHTML" hx-push-url="true">CPU %{ sortIndicator(s, "cpu") }</a></th>
+							<th><a hx-get={ sortURL("container", s, "ram") } hx-target="#container-results" hx-swap="outerHTML" hx-push-url="true">RAM %{ sortIndicator(s, "ram") }</a></th>
+							<th><a hx-get={ sortURL("container", s, "ram_bytes") } hx-target="#container-results" hx-swap="outerHTML" hx-push-url="true">RAM Used{ sortIndicator(s, "ram_bytes") }</a></th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, p := range points {
+							<tr>
+								<td>{ p.Name }</td>
+								<td>{ p.Image }</td>
+								<td>{ strconv.FormatFloat(p.CPU, 'f', 1, 64) }</td>
+								<td>{ strconv.FormatFloat(p.RAM, 'f', 1, 64) }</td>
+								<td>{ formatBytes(p.RAMBytes) }</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+	</div>
+}
+
+templ ResourceResults(points []model.ResourcePoint) {
+	if len(points) == 0 {
+		<small>No resources found</small>
+	} else {
+		<table>
+			<thead>
+				<tr>
+					<th>Type</th>
+					<th>Name</th>
+					<th>Device</th>
+					<th>Value</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, p := range points {
+					<tr>
+						<td>{ p.Type }</td>
+						<td>{ p.Name }</td>
+						<td>{ p.Device }</td>
+						<td>{ strconv.FormatFloat(p.Value, 'f', 1, 64) }</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	}
+}

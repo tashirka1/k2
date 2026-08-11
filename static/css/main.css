@@ -20,6 +20,36 @@ footer {
     margin: 0.5rem 0;
 }
 
+nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+#period {
+    width: 12rem;
+}
+
+.nav-desktop {
+    display: flex;
+    gap: 1rem;
+    list-style: none;
+}
+
+nav details.nav-mobile {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .nav-desktop {
+        display: none;
+    }
+
+    nav details.nav-mobile {
+        display: block;
+    }
+}
+
 #top-loading-bar {
     position: fixed;
     top: 0;

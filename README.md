@@ -1,27 +1,103 @@
-# k2
+# K2
 
-## how to run
+Server monitoring tool for processes, containers, and system metrics. Built with Go + Echo, htmx + templ + PicoCSS, SQLite.
 
-Development
+## Table of Contents
+
+- [Features](#features)
+- [Install](#install)
+  - [Bare-metal (systemd)](#bare-metal-systemd)
+  - [Docker](#docker)
+- [Development](#development)
+- [Build](#build)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Screenshots](#screenshots)
+- [Donate](#donate)
+
+## Features
+
+- Real-time metrics for **system** (CPU, memory, disk, network), **processes**, and **containers** (via Docker API)
+- Live-updating web UI powered by htmx and Chart.js, with a responsive PicoCSS layout
+- SQLite storage with metrics retention and automatic purge
+- Admin authentication with login form, session cookies, and account lockout after failed attempts
+- One-line **standalone binary** installation (`curl | sudo bash`) with a systemd service
+- Runs as a **single static binary without CGO** — no runtime dependencies, works on minimal hardware
+- Deployable via bare-metal systemd or Docker Compose
+
+## Install
+
+### Bare-metal (systemd)
+
 ```bash
-cp env-example .env
-make dev   # run dev server with autoreload
+curl -fsSL https://raw.githubusercontent.com/tashirka1/k2/main/scripts/install.sh | sudo bash
 ```
 
-Production Docker
+The script downloads the latest release binary, installs it to `/usr/local/bin/k2`, and sets up a systemd service. Data lives in `/opt/k2`:
+
+- `/opt/k2/k2.env` — environment configuration (generated on first install)
+- `/opt/k2/k2.db` — SQLite database
+
+Re-running the script updates the binary without touching your config or data.
+
+### Docker
+
+Clone repository
+
 ```bash
 cp env-example .env
-make up    # run docker container
+make up
 ```
 
-Production Binary
+The container runs on port 8000, mapped to the host via `K2_EXTERNAL_PORT` (default `9000`). The `./db/` directory and `.env` are mounted for persistence.
+
+## Development
+
+Clone repository
+
 ```bash
-sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential libsqlite3-dev
 cp env-example .env
-make build-bin
-./bin/k2 # run binary
+make dev   # run dev server with autoreload (air)
 ```
 
-## docs
+## Build
 
-[tutorial](/docs/tutorial)
+Clone repository
+
+```bash
+cp env-example .env
+make build-bin          # dev binary to bin/k2
+make build-linux-amd64  # static release binary to bin/k2-linux-amd64
+make check              # lint + format + tests
+```
+
+## Configuration
+
+Create a `.env` file in the project root (see `env-example`):
+
+| Variable               | Default          | Description                              |
+| ---------------------- | ---------------- | ---------------------------------------- |
+| `K2_SESSION_KEY`       | *(required)*     | Session signing key                      |
+| `K2_PORT`              | `8000`           | Server listen port                       |
+| `K2_EXTERNAL_PORT`     | `9000`           | Host port for Docker (compose only)      |
+| `K2_DB_NAME`           | `./data/k2.db`   | SQLite database path                     |
+| `K2_USERNAME`          | —                | Admin username                           |
+| `K2_PASSWORD`          | —                | Admin password                           |
+| `K2_COLLECT_INTERVAL`  | `30s`            | Metrics collection interval              |
+| `K2_RETENTION`         | `168h`           | How long metrics are kept before purging |
+
+## Usage
+
+`k2` — start the server. `k2 credentials` — print the admin username and password.
+
+## Screenshots
+
+![K2 system dashboard](screenshots/system.png)
+
+![K2 processes dashboard](screenshots/processes.png)
+
+![K2 containers dashboard](screenshots/containers.png)
+
+## Donate
+
+Support the project on [Boosty](https://boosty.to/tashirka1).

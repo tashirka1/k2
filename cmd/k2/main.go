@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -16,89 +17,150 @@ import (
 	auth_handler "github.com/tashirka1/k2/internal/auth/handler"
 	auth_service "github.com/tashirka1/k2/internal/auth/service"
 	auth_storage "github.com/tashirka1/k2/internal/auth/storage"
+	"github.com/tashirka1/k2/internal/core/config"
 	"github.com/tashirka1/k2/internal/core/db"
 	"github.com/tashirka1/k2/internal/core/health"
+	"github.com/tashirka1/k2/internal/core/stats"
+	metrics_handler "github.com/tashirka1/k2/internal/metrics/handler"
+	metrics_service "github.com/tashirka1/k2/internal/metrics/service"
+	metrics_storage "github.com/tashirka1/k2/internal/metrics/storage"
 
 	"github.com/gorilla/sessions"
-	"github.com/joho/godotenv"
-	"github.com/labstack/echo-contrib/session"
+	echo_session "github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/moby/moby/client"
+	"github.com/spf13/cobra"
 )
 
+var cfg config.Config
+
 func main() {
-	if err := Run(); err != nil {
+	rootCmd := &cobra.Command{
+		Use:   "k2",
+		Short: "K2 server monitoring tool",
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			if cmd.Name() == "help" {
+				return nil
+			}
+
+			logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+			slog.SetDefault(logger)
+
+			var err error
+			cfg, err = config.Load()
+			if err != nil {
+				return fmt.Errorf("config: %w", err)
+			}
+			return nil
+		},
+		RunE: startServer,
+	}
+
+	credentialsCmd := &cobra.Command{
+		Use:   "credentials",
+		Short: "Display auth credentials",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			database, err := db.NewDB(cfg.DBName)
+			if err != nil {
+				return fmt.Errorf("database: %w", err)
+			}
+			defer database.Close()
+
+			authStrg := auth_storage.NewAuth(database)
+			authSvc := auth_service.NewAuth(authStrg)
+
+			creds, err := authSvc.EnsureCredentials(cmd.Context(), cfg.Username, cfg.Password)
+			if err != nil {
+				return fmt.Errorf("ensure credentials: %w", err)
+			}
+
+			fmt.Printf("Username:  %s\n", creds.Username)
+			fmt.Printf("Password:  %s\n", creds.Password)
+			return nil
+		},
+	}
+
+	rootCmd.AddCommand(credentialsCmd)
+
+	if err := rootCmd.Execute(); err != nil {
 		slog.Error("fatal", "error", err)
 		os.Exit(1)
 	}
 }
 
-func Run() error {
-	// env
-	if err := godotenv.Load(); err != nil {
-		slog.Warn(".env file not found, using environment variables")
-	}
-
-	sessionKey := os.Getenv("SESSION_KEY")
-	if sessionKey == "" {
-		return fmt.Errorf("SESSION_KEY is not set")
-	}
-
-	dbName := os.Getenv("DB_NAME")
-	if dbName == "" {
-		return fmt.Errorf("DB_NAME is not set")
-	}
-
-	// logger
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	slog.SetDefault(logger)
-
-	// database
-	database, err := db.NewDB(dbName)
+func startServer(cmd *cobra.Command, _ []string) error {
+	database, err := db.NewDB(cfg.DBName)
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
 	defer database.Close()
 
-	// session
-	sessionStore := sessions.NewCookieStore([]byte(sessionKey))
+	sessionStore := sessions.NewCookieStore([]byte(cfg.SessionKey))
 
-	// echo
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
 	e.Logger.SetOutput(io.Discard)
 
-	// middleware
-	protection := http.NewCrossOriginProtection()
-	csrfMiddleware := echo.WrapMiddleware(func(next http.Handler) http.Handler {
-		return protection.Handler(next)
-	})
-	e.Use(csrfMiddleware)
-	e.Use(middleware.RequestLogger())
-	e.Use(session.Middleware(sessionStore))
-	e.Use(middleware.ContextTimeout(10 * time.Second))
-	e.Use(middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
-		Skipper: func(c echo.Context) bool {
-			return c.Request().Method != http.MethodPost && c.Path() != "/link/" && c.Path() != "/link"
-		},
-		Store: middleware.NewRateLimiterMemoryStore(3),
+	e.Use(middleware.CSRFWithConfig(middleware.CSRFConfig{
+		TokenLookup:    "header:X-CSRF-Token",
+		CookieName:     "_csrf",
+		CookiePath:     "/",
+		CookieHTTPOnly: true,
+		CookieSameSite: http.SameSiteLaxMode,
 	}))
+	e.Use(middleware.RequestLogger())
+	e.Use(echo_session.Middleware(sessionStore))
+	e.Use(middleware.ContextTimeout(10 * time.Second))
+	e.Pre(middleware.RemoveTrailingSlash())
 	e.StaticFS("/static", echo.MustSubFS(k2.EmbeddedStatic, "static"))
 	e.GET("/health", health.Handler(database))
+	e.GET("/debug/stats", stats.Handler())
 
-	// handler
-	authStrg := auth_storage.NewUser(database)
-	authSvc := auth_service.NewUser(authStrg)
+	authStrg := auth_storage.NewAuth(database)
+	authSvc := auth_service.NewAuth(authStrg)
+
+	creds, err := authSvc.EnsureCredentials(cmd.Context(), cfg.Username, cfg.Password)
+	if err != nil {
+		return fmt.Errorf("ensure credentials: %w", err)
+	}
+
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println("  K2 Server Monitor")
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Printf("  Username:  %s\n", creds.Username)
+	fmt.Printf("  Password:  %s\n", creds.Password)
+	fmt.Println(strings.Repeat("=", 60))
+
 	auth_handler.SetupHandlers(e, authSvc)
 
-	// signal
+	dockerClient, err := client.New(client.FromEnv)
+	if err != nil {
+		slog.Warn("docker client init failed, container metrics disabled", "error", err)
+	} else {
+		defer dockerClient.Close()
+	}
+
+	metricsStrg := metrics_storage.NewMetrics(database)
+	metricsSvc := metrics_service.NewMetrics(metricsStrg, dockerClient, cfg.Retention)
+	metrics_handler.SetupHandlers(e, metricsSvc)
+
+	collectorCtx, cancelCollector := context.WithCancel(cmd.Context())
+	defer cancelCollector()
+	go func() {
+		if err := metricsSvc.RunCollector(collectorCtx, cfg.CollectInterval); err != nil {
+			slog.Error("collector stopped", "error", err)
+		}
+	}()
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	addr := fmt.Sprintf(":%s", cfg.Port)
 	go func() {
-		slog.Info("server starting on :8000")
-		if err := e.Start(":8000"); err != nil && err != http.ErrServerClosed {
+		slog.Info("server starting", "addr", addr)
+		if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
 			slog.Error("server error", "error", err)
 			stop()
 		}
@@ -106,6 +168,7 @@ func Run() error {
 
 	<-ctx.Done()
 	slog.Info("shutting down...")
+	cancelCollector()
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

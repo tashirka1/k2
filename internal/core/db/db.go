@@ -9,7 +9,7 @@ import (
 
 	"github.com/tashirka1/k2"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 
 	"github.com/pressly/goose/v3"
 )
@@ -24,22 +24,22 @@ func NewDB(path string) (*sql.DB, error) {
 			"&_pragma=journal_mode(WAL)"+
 			"&_pragma=synchronous(NORMAL)"+
 			"&_pragma=temp_store(MEMORY)"+
-			"&_pragma=cache_size(-65536)"+
-			"&_pragma=auto_vacuum(INCREMENTAL)"+
+			"&_pragma=cache_size(-1024)"+
+			"&_pragma=auto_vacuum(FULL)"+
 			"&_pragma=journal_size_limit(67110000)"+
 			"&_pragma=page_size(4096)",
 		path,
 	)
-	db, err := sql.Open("sqlite3", dsn)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 
-	// connection pool — read-heavy: 64 conns for 8 cores, WAL + mmap eliminate lock contention
-	db.SetMaxOpenConns(64)
-	db.SetMaxIdleConns(64)
-	db.SetConnMaxLifetime(30 * time.Minute)
-	db.SetConnMaxIdleTime(15 * time.Minute)
+	// small pool keeps per-connection page cache (1 MiB) bounded
+	db.SetMaxOpenConns(4)
+	db.SetMaxIdleConns(4)
+	db.SetConnMaxLifetime(15 * time.Minute)
+	db.SetConnMaxIdleTime(5 * time.Minute)
 
 	// goose up
 	if err := runMigrations(db); err != nil {

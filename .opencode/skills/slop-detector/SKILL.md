@@ -134,7 +134,7 @@ Go through each item. If a threshold is exceeded — record the issue with sever
 - High — each match
 
 **5.3 Incorrect sqlite constructor**
-- Search: `sql.Open("sqlite"` or `sql.Open("sqlite3", ...)` without `_ "github.com/mattn/go-sqlite3"`
+- Search: `sql.Open("sqlite"` or `sql.Open("sqlite3", ...)` without `_ "modernc.org/sqlite"`
 - High — if driver imported but wrong open string, or open string without driver
 
 #### 6. Defensive Overkill

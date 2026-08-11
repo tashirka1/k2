@@ -1,21 +1,43 @@
 package view
 
-templ Nav(title string, userId int) {
+templ Nav() {
 	<nav>
 		<ul>
 			<li>
-				<a href="/">
-					<strong>{ title }</strong>
+				<a href="/" class="contrast">
+					<strong>K2</strong>
+				</a>
+			</li>
+		</ul>
+		<ul class="nav-desktop">
+			<li><a href="/metrics/system">System</a></li>
+			<li><a href="/metrics/processes">Processes</a></li>
+			<li><a href="/metrics/containers">Containers</a></li>
+			<li><a href="/logout">Log out</a></li>
+		</ul>
+		<details class="dropdown nav-mobile">
+			<summary>☰ Меню</summary>
+			<ul>
+				<li><a href="/metrics/system">System</a></li>
+				<li><a href="/metrics/processes">Processes</a></li>
+				<li><a href="/metrics/containers">Containers</a></li>
+				<li><a href="/logout">Log out</a></li>
+			</ul>
+		</details>
+	</nav>
+}
+
+templ NavAnon() {
+	<nav>
+		<ul>
+			<li>
+				<a href="/" class="contrast">
+					<strong>K2</strong>
 				</a>
 			</li>
 		</ul>
 		<ul>
-			if userId != 0 {
-				<li><a href="/auth/logout">Log out</a></li>
-			} else {
-				<li><a href="/auth/register">Register</a></li>
-				<li><a href="/auth/login">Sign In</a></li>
-			}
+			<li><a href="/login">Login</a></li>
 		</ul>
 	</nav>
 }
@@ -26,19 +48,22 @@ templ Base(title string, userId int) {
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-			<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self';"/>
+			<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self';"/>
 			<link rel="icon" type="image/x-icon" href="/static/icon/favicon.ico"/>
 			<link rel="icon" href="/static/icon/favicon.svg" type="image/svg+xml"/>
 			<link rel="apple-touch-icon" href="/static/icon/favicon.png"/>
 			<title>{ title }</title>
 			<link rel="stylesheet" href="/static/css/pico@2.min.css"/>
-			<link rel="stylesheet" href="/static/css/main.css?v=2"/>
+			<link rel="stylesheet" href="/static/css/main.css?v=1"/>
 		</head>
-		<body hx-boost="true" hx-target="#main" hx-indicator="#top-loading-bar" style="padding: 0px 30px">
-			<div id="top-loading-bar" class="htmx-indicator"></div>
+		<body style="padding: 0px 30px">
 			<div id="main">
 				<div class="container">
-					@Nav(title, userId)
+					if userId != 0 {
+						@Nav()
+					} else {
+						@NavAnon()
+					}
 					<main>
 						<section>
 							{ children... }
@@ -46,18 +71,9 @@ templ Base(title string, userId int) {
 					</main>
 				</div>
 			</div>
-			<script src="/static/js/htmx.org@2.0.10.min.js"></script>
-			<script src="/static/js/main.js?v=2"></script>
+			<script src="/static/js/htmx.org@2.0.10.min.js?v=1"></script>
+			<script src="/static/js/chart.umd.js?v=1"></script>
+			<script src="/static/js/main.js?v=1"></script>
 		</body>
 	</html>
-}
-
-templ Unauthorized(userId int) {
-	@Base("k2", userId) {
-		<article>
-			<header><strong>Access Denied</strong></header>
-			<p>Please <a href="/auth/login">sign in</a> to access this page.</p>
-			<p>No account? <a href="/auth/register">Register</a></p>
-		</article>
-	}
 }

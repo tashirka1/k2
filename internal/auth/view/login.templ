@@ -1,27 +1,39 @@
 package view
 
-import "github.com/tashirka1/k2/internal/core/view"
+import core_view "github.com/tashirka1/k2/internal/core/view"
 
-templ LoginError(err string) {
-	<div>{ err }</div>
-}
-
-templ LoginForm() {
-	<form hx-post="/auth/login">
-		<input type="email" name="email" placeholder="Email" aria-label="email" required/>
-		<input type="password" name="password" placeholder="Password" aria-label="password" required/>
-		<button>Sign In</button>
-		<div id="errors" style="margin-top:5px;color: red"></div>
-	</form>
+templ Root() {
+	@core_view.Base("K2 Monitor", 0) {
+		<article>
+			<header><strong>K2 Server Monitor</strong></header>
+			<p>Welcome to K2, a server monitoring tool.</p>
+			<a href="/login" role="button">Sign In</a>
+		</article>
+	}
 }
 
 templ Login(userId int) {
-	@view.Base("K2", userId) {
+	@core_view.Base("K2 Monitor", userId) {
 		<div class="grid">
 			<article style="margin: auto">
-				<header><strong>Sign In</strong></header>
-				@LoginForm()
+				<header><strong>Login</strong></header>
+				<form hx-post="/login" hx-target="#main" hx-swap="outerHTML">
+					<label>
+						Username
+						<input type="text" name="username" placeholder="username" required/>
+					</label>
+					<label>
+						Password
+						<input type="password" name="password" placeholder="password" required/>
+					</label>
+					<button type="submit">Sign In</button>
+				</form>
+				<div id="errors"></div>
 			</article>
 		</div>
 	}
+}
+
+templ LoginError(message string) {
+	<small style="color: red">{ message }</small>
 }
