@@ -32,8 +32,10 @@ func ClearSession(c echo.Context) {
 	if err != nil || sess == nil {
 		return
 	}
-	sess.Options.MaxAge = -1
-	_ = sess.Save(c.Request(), c.Response())
+	sess.Options = newCookieOptions(-1)
+	if err := sess.Save(c.Request(), c.Response()); err != nil {
+		slog.Error("session clear failed", "error", err)
+	}
 }
 
 func SetUserId(c echo.Context, userId int) {
@@ -42,16 +44,20 @@ func SetUserId(c echo.Context, userId int) {
 		slog.Error("session get failed", "error", err)
 		return
 	}
-	sess.Options = &sessions.Options{
-		Path:     "/",
-		MaxAge:   60 * 60 * 24 * 7,
-		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteLaxMode,
-	}
+	sess.Options = newCookieOptions(60 * 60 * 24 * 7)
 	sess.Values[UserIdKey] = userId
 	if err := sess.Save(c.Request(), c.Response()); err != nil {
 		slog.Error("session save failed", "error", err)
+	}
+}
+
+func newCookieOptions(maxAge int) *sessions.Options {
+	return &sessions.Options{
+		Path:     "/",
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
 	}
 }
 
