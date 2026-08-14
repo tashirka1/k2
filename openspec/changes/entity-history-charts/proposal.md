@@ -21,10 +21,10 @@ The Process and Container tables show only the latest snapshot. Users cannot ins
 ## Impact
 
 - `internal/metrics/model/` — reused `ChartData`/`ChartSeries`; no new DTOs expected for process/container series.
-- `internal/metrics/storage/` — new history queries on `metrics_process` and `metrics_container`; composite index migrations.
+- `internal/metrics/storage/` — new history queries on `metrics_process` and `metrics_container`; composite indexes.
 - `internal/metrics/service/` — new history chart-building methods (pivot rows to ChartData).
 - `internal/metrics/handler/` — new detail-page handlers and chart JSON handler.
 - `internal/metrics/view/` — two new templ pages; link-ify PID/Name cells.
 - `static/js/main.js` — support `data-chart` canvas attribute for non-resource chart URLs.
-- `migrations/` — new goose migration adding composite indexes `(pid, timestamp)` and `(name, timestamp)`.
+- `migrations/20260724193038_create_tables.sql` — add composite indexes `(pid, timestamp)` and `(name, timestamp)` to the last migration; no new migration file.
 - Doctrine of System page is the reference: three canvases, shared period select, JSON-fed Chart.js.

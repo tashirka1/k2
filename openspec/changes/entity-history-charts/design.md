@@ -21,11 +21,11 @@ Process/container data is structurally different: `metrics_process` and `metrics
 
 ## Decisions
 
-### D1: Composite indexes in a new goose migration
+### D1: Composite indexes in the last migration
 Both history queries filter by `pid`/`name` AND `timestamp`; the current `timestamp`-only indexes are insufficient.
-- `CREATE INDEX idx_process_pid_ts ON metrics_process(pid, timestamp);`
-- `CREATE INDEX idx_container_name_ts ON metrics_container(name, timestamp);`
-Migration is a fresh dependent `.sql` file in `/migrations`, not an edit of the existing initial migration (production DBs already applied it).
+- `CREATE INDEX IF NOT EXISTS idx_process_pid_ts ON metrics_process(pid, timestamp);`
+- `CREATE INDEX IF NOT EXISTS idx_container_name_ts ON metrics_container(name, timestamp);`
+The indexes are added to the existing last migration `/migrations/20260724193038_create_tables.sql`; no new migration file is created.
 
 ### D2: New storage queries returning full rows (no storage-side pivot)
 Add to `MetricsStorage` interface and `storage.Metrics`:
@@ -77,11 +77,10 @@ In `ProcessResults`, PID cell becomes `<a href="/metrics/processes/{p.PID}">`. I
 
 ## Migration Plan
 
-1. Add goose migration with the two composite indexes.
+1. Add the two composite indexes to the existing last migration `/migrations/20260724193038_create_tables.sql` (no new migration file).
 2. Storage queries → service chart builders → handlers + templ pages + main.js `data-chart`.
 3. New routes are additive and auth-protected under the existing `/metrics` group; no route removal, so rollback is a revert of the change.
 
 ## Open Questions
 
-- Exact goose migration version/timestamp for the new file (decided at implementation time).
 - Whether RAM Used far-axis labelling in Chart.js is needed beyond default numeric y-axis (MiB values render natively; default is fine).

@@ -1,6 +1,6 @@
 ## 1. Data layer (migration + storage)
 
-- [ ] 1.1 Create a new goose migration in `/migrations` adding `idx_process_pid_ts` on `metrics_process(pid, timestamp)` and `idx_container_name_ts` on `metrics_container(name, timestamp)`
+- [ ] 1.1 Add `idx_process_pid_ts` on `metrics_process(pid, timestamp)` and `idx_container_name_ts` on `metrics_container(name, timestamp)` to the last migration `/migrations/20260724193038_create_tables.sql` (no new migration file)
 - [ ] 1.2 Add `QueryProcessHistory(ctx, pid, from, to)` and `QueryContainerHistory(ctx, name, from, to)` to the `MetricsStorage` interface in `internal/metrics/storage/metrics.go`
 - [ ] 1.3 Implement `QueryProcessHistory` in `storage.Metrics` (select `timestamp, cpu, ram, ram_bytes` from `metrics_process` where `pid = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp`)
 - [ ] 1.4 Implement `QueryContainerHistory` in `storage.Metrics` (select `timestamp, cpu, ram, ram_bytes` from `metrics_container` where `name = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp`)
