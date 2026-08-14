@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS metrics_process (
     ram_bytes INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_process_ts ON metrics_process(timestamp);
+CREATE INDEX IF NOT EXISTS idx_process_pid_ts ON metrics_process(pid, timestamp);
 
 CREATE TABLE IF NOT EXISTS metrics_container (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,6 +41,7 @@ CREATE TABLE IF NOT EXISTS metrics_container (
     ram_bytes INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_container_ts ON metrics_container(timestamp);
+CREATE INDEX IF NOT EXISTS idx_container_name_ts ON metrics_container(name, timestamp);
 
 -- +goose Down
 

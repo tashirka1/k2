@@ -22,7 +22,9 @@ function initCharts() {
 		var old = Chart.getChart(canvas.id);
 		if (old) old.destroy();
 
-		var url = '/metrics/chart/' + canvas.id.replace('Chart', '') + '?period=' + getPeriod();
+		var url = canvas.dataset.chart
+			? canvas.dataset.chart + '?' + new URLSearchParams({ period: getPeriod() })
+			: '/metrics/chart/' + canvas.id.replace('Chart', '') + '?period=' + getPeriod();
 		fetch(url).then(function (r) { return r.json(); }).then(function (data) {
 			if (pendingCharts[canvas.id].el !== canvas) return;
 			var labels = data.labels || [];

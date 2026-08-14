@@ -3,6 +3,7 @@ package handler
 import (
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/tashirka1/k2/internal/core/session"
@@ -82,6 +83,64 @@ func (h *Metrics) ChartData(c echo.Context) error {
 	return c.JSON(http.StatusOK, data)
 }
 
+func (h *Metrics) ProcessHistory(c echo.Context) error {
+	pid, err := strconv.Atoi(c.Param("pid"))
+	if err != nil {
+		return c.String(http.StatusBadRequest, "invalid pid")
+	}
+	return core_view.RenderTemplate(c, view.ProcessHistoryPage(pid))
+}
+
+func (h *Metrics) ContainerHistory(c echo.Context) error {
+	return core_view.RenderTemplate(c, view.ContainerHistoryPage(c.Param("name")))
+}
+
+func validChartParam(p string) bool {
+	switch p {
+	case "cpu", "ram", "ram_bytes":
+		return true
+	}
+	return false
+}
+
+func (h *Metrics) ProcessChart(c echo.Context) error {
+	pid, err := strconv.Atoi(c.Param("pid"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid pid"})
+	}
+	param := c.Param("param")
+	if !validChartParam(param) {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid param"})
+	}
+	dur := parseDuration(c.QueryParam("period"), time.Hour)
+	from := time.Now().Add(-dur)
+	to := time.Now()
+
+	data, err := h.s.QueryProcessChart(c.Request().Context(), pid, param, from, to)
+	if err != nil {
+		slog.Error("process chart query failed", "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "query failed"})
+	}
+	return c.JSON(http.StatusOK, data)
+}
+
+func (h *Metrics) ContainerChart(c echo.Context) error {
+	param := c.Param("param")
+	if !validChartParam(param) {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid param"})
+	}
+	dur := parseDuration(c.QueryParam("period"), time.Hour)
+	from := time.Now().Add(-dur)
+	to := time.Now()
+
+	data, err := h.s.QueryContainerChart(c.Request().Context(), c.Param("name"), param, from, to)
+	if err != nil {
+		slog.Error("container chart query failed", "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "query failed"})
+	}
+	return c.JSON(http.StatusOK, data)
+}
+
 func (h *Metrics) Search(c echo.Context) error {
 	q := c.QueryParam("q")
 	category := c.Param("category")
@@ -130,6 +189,10 @@ func SetupHandlers(e *echo.Echo, s service.MetricsService) {
 	group.GET("/system", h.System)
 	group.GET("/processes", h.Processes)
 	group.GET("/containers", h.Containers)
+	group.GET("/processes/:pid", h.ProcessHistory)
+	group.GET("/containers/:name", h.ContainerHistory)
 	group.GET("/chart/:type", h.ChartData)
+	group.GET("/chart/process/:pid/:param", h.ProcessChart)
+	group.GET("/chart/container/:name/:param", h.ContainerChart)
 	group.GET("/search/:category", h.Search)
 }
