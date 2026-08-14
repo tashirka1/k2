@@ -40,8 +40,11 @@ func ClearSession(c echo.Context) {
 
 func SetUserId(c echo.Context, userId int) {
 	sess, err := session.Get(UserSessionsKey, c)
-	if err != nil || sess == nil {
-		slog.Error("session get failed", "error", err)
+	if err != nil {
+		slog.Warn("session get failed, rewriting session", "error", err)
+	}
+	if sess == nil {
+		slog.Error("session get returned nil")
 		return
 	}
 	sess.Options = newCookieOptions(60 * 60 * 24 * 7)
