@@ -39,6 +39,9 @@ fi
 install -m 0755 "${tmp}" "${BIN}"
 echo "Installed ${BIN}"
 
+echo "Removing previous data in ${DATA_DIR}"
+systemctl stop k2 2>/dev/null || true
+rm -rf "${DATA_DIR}"
 mkdir -p "${DATA_DIR}"
 
 if [[ ! -f "${ENV_FILE}" ]]; then
@@ -84,6 +87,10 @@ echo "K2 installed. Service status:"
 systemctl --no-pager --full status k2
 
 echo
-echo "Credentials:"
-echo "  Username: $(grep '^K2_USERNAME=' "${ENV_FILE}" | cut -d= -f2-)"
-echo "  Password: $(grep '^K2_PASSWORD=' "${ENV_FILE}" | cut -d= -f2-)"
+line="$(printf '%*s' 60 '' | tr ' ' '=')"
+echo "${line}"
+echo "  K2 Server Monitor"
+echo "${line}"
+printf "  Username:  %s\n" "$(grep '^K2_USERNAME=' "${ENV_FILE}" | cut -d= -f2-)"
+printf "  Password:  %s\n" "$(grep '^K2_PASSWORD=' "${ENV_FILE}" | cut -d= -f2-)"
+echo "${line}"

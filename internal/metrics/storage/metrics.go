@@ -20,6 +20,8 @@ type MetricsStorage interface {
 	QueryContainers(ctx context.Context, from, to time.Time) ([]model.ContainerPoint, error)
 	QueryLatestProcesses(ctx context.Context) ([]model.ProcessPoint, error)
 	QueryLatestContainers(ctx context.Context) ([]model.ContainerPoint, error)
+	QueryProcessHistory(ctx context.Context, pid int, from, to time.Time) ([]model.ProcessPoint, error)
+	QueryContainerHistory(ctx context.Context, name string, from, to time.Time) ([]model.ContainerPoint, error)
 	PurgeOlderThan(ctx context.Context, age time.Duration) error
 	SearchResource(ctx context.Context, query string) ([]model.ResourcePoint, error)
 	SearchProcess(ctx context.Context, query string) ([]model.ProcessPoint, error)
@@ -189,6 +191,42 @@ func (r *Metrics) QueryLatestContainers(ctx context.Context) ([]model.ContainerP
 	for rows.Next() {
 		var p model.ContainerPoint
 		if err := rows.Scan(&p.Timestamp, &p.Name, &p.Image, &p.CPU, &p.RAM, &p.RAMBytes); err != nil {
+			return nil, err
+		}
+		points = append(points, p)
+	}
+	return points, rows.Err()
+}
+
+func (r *Metrics) QueryProcessHistory(ctx context.Context, pid int, from, to time.Time) ([]model.ProcessPoint, error) {
+	rows, err := r.db.QueryContext(ctx, "SELECT timestamp, cpu, ram, ram_bytes FROM metrics_process WHERE pid = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp", pid, from.UTC().Format(time.RFC3339), to.UTC().Format(time.RFC3339))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var points []model.ProcessPoint
+	for rows.Next() {
+		var p model.ProcessPoint
+		if err := rows.Scan(&p.Timestamp, &p.CPU, &p.RAM, &p.RAMBytes); err != nil {
+			return nil, err
+		}
+		points = append(points, p)
+	}
+	return points, rows.Err()
+}
+
+func (r *Metrics) QueryContainerHistory(ctx context.Context, name string, from, to time.Time) ([]model.ContainerPoint, error) {
+	rows, err := r.db.QueryContext(ctx, "SELECT timestamp, cpu, ram, ram_bytes FROM metrics_container WHERE name = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp", name, from.UTC().Format(time.RFC3339), to.UTC().Format(time.RFC3339))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var points []model.ContainerPoint
+	for rows.Next() {
+		var p model.ContainerPoint
+		if err := rows.Scan(&p.Timestamp, &p.CPU, &p.RAM, &p.RAMBytes); err != nil {
 			return nil, err
 		}
 		points = append(points, p)

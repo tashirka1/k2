@@ -22,6 +22,8 @@ type MetricsService interface {
 	SearchResource(ctx context.Context, query string) ([]model.ResourcePoint, error)
 	SearchProcess(ctx context.Context, query string, s model.Sort) ([]model.ProcessPoint, error)
 	SearchContainer(ctx context.Context, query string, s model.Sort) ([]model.ContainerPoint, error)
+	QueryProcessChart(ctx context.Context, pid int, param string, from, to time.Time) (model.ChartData, error)
+	QueryContainerChart(ctx context.Context, name, param string, from, to time.Time) (model.ChartData, error)
 }
 
 type Metrics struct {
@@ -100,6 +102,8 @@ func chartLabel(metricType string) string {
 		return "CPU %"
 	case "ram":
 		return "RAM %"
+	case "ram_bytes":
+		return "RAM Used (MB)"
 	}
 	return metricType
 }
@@ -134,6 +138,76 @@ func buildDiskChartData(points []model.ResourcePoint) model.ChartData {
 	}
 
 	return model.ChartData{Labels: labels, Series: []model.ChartSeries{{Label: "Disk %", Data: series}}}
+}
+
+func (s *Metrics) QueryProcessChart(ctx context.Context, pid int, param string, from, to time.Time) (model.ChartData, error) {
+	points, err := s.r.QueryProcessHistory(ctx, pid, from, to)
+	if err != nil {
+		return model.ChartData{}, err
+	}
+	return buildProcessChartData(param, points), nil
+}
+
+func (s *Metrics) QueryContainerChart(ctx context.Context, name, param string, from, to time.Time) (model.ChartData, error) {
+	points, err := s.r.QueryContainerHistory(ctx, name, from, to)
+	if err != nil {
+		return model.ChartData{}, err
+	}
+	return buildContainerChartData(param, points), nil
+}
+
+func buildProcessChartData(param string, points []model.ProcessPoint) model.ChartData {
+	labels := make([]string, 0, len(points))
+	values := make([]*float64, 0, len(points))
+	for _, p := range points {
+		labels = append(labels, p.Timestamp)
+		values = append(values, processValue(param, p))
+	}
+	return buildSeriesChartData(param, labels, values)
+}
+
+func buildContainerChartData(param string, points []model.ContainerPoint) model.ChartData {
+	labels := make([]string, 0, len(points))
+	values := make([]*float64, 0, len(points))
+	for _, p := range points {
+		labels = append(labels, p.Timestamp)
+		values = append(values, containerValue(param, p))
+	}
+	return buildSeriesChartData(param, labels, values)
+}
+
+func buildSeriesChartData(param string, labels []string, values []*float64) model.ChartData {
+	return model.ChartData{Labels: labels, Series: []model.ChartSeries{{Label: chartLabel(param), Data: values}}}
+}
+
+func processValue(param string, p model.ProcessPoint) *float64 {
+	switch param {
+	case "cpu":
+		return &p.CPU
+	case "ram":
+		return &p.RAM
+	case "ram_bytes":
+		v := ramBytesToMiB(p.RAMBytes)
+		return &v
+	}
+	return nil
+}
+
+func containerValue(param string, p model.ContainerPoint) *float64 {
+	switch param {
+	case "cpu":
+		return &p.CPU
+	case "ram":
+		return &p.RAM
+	case "ram_bytes":
+		v := ramBytesToMiB(p.RAMBytes)
+		return &v
+	}
+	return nil
+}
+
+func ramBytesToMiB(b int64) float64 {
+	return float64(b) / 1048576
 }
 
 func (s *Metrics) QueryProcesses(ctx context.Context, from, to time.Time) ([]model.ProcessPoint, error) {

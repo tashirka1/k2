@@ -13,13 +13,17 @@ import (
 var _ storage.MetricsStorage = (*mockMetricsStorage)(nil)
 
 type mockMetricsStorage struct {
-	latestProcesses   []model.ProcessPoint
-	latestContainers  []model.ContainerPoint
-	processResults    []model.ProcessPoint
-	containerResults  []model.ContainerPoint
-	resources         []model.ResourcePoint
-	searchProcessCall bool
-	searchContainer   bool
+	processHistoryErr   error
+	containerHistoryErr error
+	latestProcesses     []model.ProcessPoint
+	latestContainers    []model.ContainerPoint
+	processResults      []model.ProcessPoint
+	containerResults    []model.ContainerPoint
+	resources           []model.ResourcePoint
+	processHistory      []model.ProcessPoint
+	containerHistory    []model.ContainerPoint
+	searchProcessCall   bool
+	searchContainer     bool
 }
 
 func (m *mockMetricsStorage) InsertResourceBatch(_ context.Context, _ []model.ResourcePoint) error {
@@ -48,6 +52,12 @@ func (m *mockMetricsStorage) QueryLatestContainers(_ context.Context) ([]model.C
 }
 
 func (m *mockMetricsStorage) PurgeOlderThan(_ context.Context, _ time.Duration) error { return nil }
+func (m *mockMetricsStorage) QueryProcessHistory(_ context.Context, _ int, _, _ time.Time) ([]model.ProcessPoint, error) {
+	return m.processHistory, m.processHistoryErr
+}
+func (m *mockMetricsStorage) QueryContainerHistory(_ context.Context, _ string, _, _ time.Time) ([]model.ContainerPoint, error) {
+	return m.containerHistory, m.containerHistoryErr
+}
 func (m *mockMetricsStorage) SearchResource(_ context.Context, _ string) ([]model.ResourcePoint, error) {
 	return nil, nil
 }
@@ -301,6 +311,214 @@ func TestBuildChartData(t *testing.T) {
 					assert.Equal(t, *want.Data[j], *got.Series[i].Data[j])
 				}
 			}
+		})
+	}
+}
+
+func TestBuildProcessChartData(t *testing.T) {
+	cpu := 42.5
+	ram := 63.1
+	mib := 500.0
+
+	tests := []struct {
+		name       string
+		param      string
+		points     []model.ProcessPoint
+		wantLabels []string
+		wantSeries []model.ChartSeries
+	}{
+		{
+			name:  "cpu series",
+			param: "cpu",
+			points: []model.ProcessPoint{
+				{Timestamp: "2026-08-02T10:00:00Z", CPU: cpu},
+				{Timestamp: "2026-08-02T10:00:01Z", CPU: cpu + 1},
+			},
+			wantLabels: []string{"2026-08-02T10:00:00Z", "2026-08-02T10:00:01Z"},
+			wantSeries: []model.ChartSeries{{Label: "CPU %", Data: []*float64{&cpu, ptr(cpu + 1)}}},
+		},
+		{
+			name:  "ram series",
+			param: "ram",
+			points: []model.ProcessPoint{
+				{Timestamp: "2026-08-02T10:00:00Z", RAM: ram},
+			},
+			wantLabels: []string{"2026-08-02T10:00:00Z"},
+			wantSeries: []model.ChartSeries{{Label: "RAM %", Data: []*float64{&ram}}},
+		},
+		{
+			name:  "ram_bytes converts to MiB",
+			param: "ram_bytes",
+			points: []model.ProcessPoint{
+				{Timestamp: "2026-08-02T10:00:00Z", RAMBytes: 524288000},
+			},
+			wantLabels: []string{"2026-08-02T10:00:00Z"},
+			wantSeries: []model.ChartSeries{{Label: "RAM Used (MB)", Data: []*float64{&mib}}},
+		},
+		{
+			name:       "empty points yields empty labels",
+			param:      "cpu",
+			points:     []model.ProcessPoint{},
+			wantLabels: []string{},
+			wantSeries: []model.ChartSeries{{Label: "CPU %", Data: []*float64{}}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildProcessChartData(tt.param, tt.points)
+
+			assert.Equal(t, tt.wantLabels, got.Labels)
+			assert.Len(t, got.Series, len(tt.wantSeries))
+			for i, want := range tt.wantSeries {
+				assert.Equal(t, want.Label, got.Series[i].Label)
+				assert.Len(t, got.Series[i].Data, len(want.Data))
+				for j := range want.Data {
+					assert.Equal(t, *want.Data[j], *got.Series[i].Data[j])
+				}
+			}
+		})
+	}
+}
+
+func TestBuildContainerChartData(t *testing.T) {
+	cpu := 10.0
+	ram := 20.0
+	mib := 100.0
+
+	tests := []struct {
+		name       string
+		param      string
+		points     []model.ContainerPoint
+		wantLabels []string
+		wantSeries []model.ChartSeries
+	}{
+		{
+			name:  "cpu series",
+			param: "cpu",
+			points: []model.ContainerPoint{
+				{Timestamp: "2026-08-02T10:00:00Z", CPU: cpu},
+			},
+			wantLabels: []string{"2026-08-02T10:00:00Z"},
+			wantSeries: []model.ChartSeries{{Label: "CPU %", Data: []*float64{&cpu}}},
+		},
+		{
+			name:  "ram series",
+			param: "ram",
+			points: []model.ContainerPoint{
+				{Timestamp: "2026-08-02T10:00:00Z", RAM: ram},
+			},
+			wantLabels: []string{"2026-08-02T10:00:00Z"},
+			wantSeries: []model.ChartSeries{{Label: "RAM %", Data: []*float64{&ram}}},
+		},
+		{
+			name:  "ram_bytes converts to MiB",
+			param: "ram_bytes",
+			points: []model.ContainerPoint{
+				{Timestamp: "2026-08-02T10:00:00Z", RAMBytes: 104857600},
+			},
+			wantLabels: []string{"2026-08-02T10:00:00Z"},
+			wantSeries: []model.ChartSeries{{Label: "RAM Used (MB)", Data: []*float64{&mib}}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildContainerChartData(tt.param, tt.points)
+
+			assert.Equal(t, tt.wantLabels, got.Labels)
+			assert.Len(t, got.Series, len(tt.wantSeries))
+			for i, want := range tt.wantSeries {
+				assert.Equal(t, want.Label, got.Series[i].Label)
+				assert.Len(t, got.Series[i].Data, len(want.Data))
+				for j := range want.Data {
+					assert.Equal(t, *want.Data[j], *got.Series[i].Data[j])
+				}
+			}
+		})
+	}
+}
+
+func ptr(v float64) *float64 { return &v }
+
+func TestQueryProcessChart(t *testing.T) {
+	points := []model.ProcessPoint{{Timestamp: "2026-08-02T10:00:00Z", CPU: 42.5}}
+
+	tests := []struct {
+		name    string
+		mock    *mockMetricsStorage
+		param   string
+		wantLen int
+		wantErr bool
+	}{
+		{
+			name:    "success",
+			mock:    &mockMetricsStorage{processHistory: points},
+			param:   "cpu",
+			wantLen: 1,
+		},
+		{
+			name:    "storage error",
+			mock:    &mockMetricsStorage{processHistoryErr: context.DeadlineExceeded},
+			param:   "cpu",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := NewMetrics(tt.mock, nil, 7*24*time.Hour)
+
+			got, err := s.QueryProcessChart(context.Background(), 1, tt.param, time.Now().Add(-time.Hour), time.Now())
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Len(t, got.Labels, tt.wantLen)
+			assert.Equal(t, "CPU %", got.Series[0].Label)
+		})
+	}
+}
+
+func TestQueryContainerChart(t *testing.T) {
+	points := []model.ContainerPoint{{Timestamp: "2026-08-02T10:00:00Z", RAMBytes: 104857600}}
+
+	tests := []struct {
+		name    string
+		mock    *mockMetricsStorage
+		param   string
+		wantLen int
+		wantErr bool
+	}{
+		{
+			name:    "success",
+			mock:    &mockMetricsStorage{containerHistory: points},
+			param:   "ram_bytes",
+			wantLen: 1,
+		},
+		{
+			name:    "storage error",
+			mock:    &mockMetricsStorage{containerHistoryErr: context.DeadlineExceeded},
+			param:   "ram_bytes",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := NewMetrics(tt.mock, nil, 7*24*time.Hour)
+
+			got, err := s.QueryContainerChart(context.Background(), "web", tt.param, time.Now().Add(-time.Hour), time.Now())
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Len(t, got.Labels, tt.wantLen)
+			assert.Equal(t, "RAM Used (MB)", got.Series[0].Label)
 		})
 	}
 }
