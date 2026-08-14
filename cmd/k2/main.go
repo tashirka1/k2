@@ -75,8 +75,12 @@ func main() {
 				return fmt.Errorf("ensure credentials: %w", err)
 			}
 
-			fmt.Printf("Username:  %s\n", creds.Username)
-			fmt.Printf("Password:  %s\n", creds.Password)
+			fmt.Println(strings.Repeat("=", 60))
+			fmt.Println("  K2 Server Monitor")
+			fmt.Println(strings.Repeat("=", 60))
+			fmt.Printf("  Username:  %s\n", creds.Username)
+			fmt.Printf("  Password:  %s\n", creds.Password)
+			fmt.Println(strings.Repeat("=", 60))
 			return nil
 		},
 	}

@@ -38,7 +38,7 @@ The script downloads the latest release binary, installs it to `/usr/local/bin/k
 - `/opt/k2/k2.env` — environment configuration (generated on first install)
 - `/opt/k2/k2.db` — SQLite database
 
-Re-running the script updates the binary without touching your config or data.
+Re-running the script wipes previous data in `/opt/k2` and reinstalls a fresh instance.
 
 ### Docker
 
@@ -80,7 +80,7 @@ Create a `.env` file in the project root (see `env-example`):
 | `K2_SESSION_KEY`       | *(required)*     | Session signing key                      |
 | `K2_PORT`              | `8000`           | Server listen port                       |
 | `K2_EXTERNAL_PORT`     | `9000`           | Host port for Docker (compose only)      |
-| `K2_DB_NAME`           | `./data/k2.db`   | SQLite database path                     |
+| `K2_DB_NAME`           | `./db/k2.db`     | SQLite database path                     |
 | `K2_USERNAME`          | —                | Admin username                           |
 | `K2_PASSWORD`          | —                | Admin password                           |
 | `K2_COLLECT_INTERVAL`  | `30s`            | Metrics collection interval              |
