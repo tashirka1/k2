@@ -306,11 +306,16 @@ func (s *Metrics) collectTick(ctx context.Context) error {
 func (s *Metrics) RunMaintenance(ctx context.Context) error {
 	s.runTick(ctx)
 
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+
 	for {
-		if err := waitUntilMidnight(ctx); err != nil {
+		select {
+		case <-ctx.Done():
 			return nil
+		case <-ticker.C:
+			s.runTick(ctx)
 		}
-		s.runTick(ctx)
 	}
 }
 
@@ -327,18 +332,4 @@ func (s *Metrics) maintenanceTick(ctx context.Context) error {
 		return err
 	}
 	return s.r.Vacuum(ctx)
-}
-
-func waitUntilMidnight(ctx context.Context) error {
-	now := time.Now()
-	next := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
-	timer := time.NewTimer(time.Until(next))
-	defer timer.Stop()
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
 }

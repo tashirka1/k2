@@ -572,10 +572,3 @@ func TestMaintenanceTick(t *testing.T) {
 		})
 	}
 }
-
-func TestWaitUntilMidnight(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	assert.ErrorIs(t, waitUntilMidnight(ctx), context.Canceled)
-}
