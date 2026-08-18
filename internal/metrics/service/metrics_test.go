@@ -15,6 +15,8 @@ var _ storage.MetricsStorage = (*mockMetricsStorage)(nil)
 type mockMetricsStorage struct {
 	processHistoryErr   error
 	containerHistoryErr error
+	purgeErr            error
+	vacuumErr           error
 	latestProcesses     []model.ProcessPoint
 	latestContainers    []model.ContainerPoint
 	processResults      []model.ProcessPoint
@@ -24,6 +26,7 @@ type mockMetricsStorage struct {
 	containerHistory    []model.ContainerPoint
 	searchProcessCall   bool
 	searchContainer     bool
+	vacuumCalled        bool
 }
 
 func (m *mockMetricsStorage) InsertResourceBatch(_ context.Context, _ []model.ResourcePoint) error {
@@ -51,7 +54,13 @@ func (m *mockMetricsStorage) QueryLatestContainers(_ context.Context) ([]model.C
 	return m.latestContainers, nil
 }
 
-func (m *mockMetricsStorage) PurgeOlderThan(_ context.Context, _ time.Duration) error { return nil }
+func (m *mockMetricsStorage) PurgeOlderThan(_ context.Context, _ time.Duration) error {
+	return m.purgeErr
+}
+func (m *mockMetricsStorage) Vacuum(_ context.Context) error {
+	m.vacuumCalled = true
+	return m.vacuumErr
+}
 func (m *mockMetricsStorage) QueryProcessHistory(_ context.Context, _ int, _, _ time.Time) ([]model.ProcessPoint, error) {
 	return m.processHistory, m.processHistoryErr
 }
@@ -519,6 +528,47 @@ func TestQueryContainerChart(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Len(t, got.Labels, tt.wantLen)
 			assert.Equal(t, "RAM Used (MB)", got.Series[0].Label)
+		})
+	}
+}
+
+func TestMaintenanceTick(t *testing.T) {
+	tests := []struct {
+		mock       *mockMetricsStorage
+		name       string
+		wantErr    bool
+		wantVacuum bool
+	}{
+		{
+			name:       "success",
+			mock:       &mockMetricsStorage{},
+			wantVacuum: true,
+		},
+		{
+			name:    "purge error skips vacuum",
+			mock:    &mockMetricsStorage{purgeErr: context.DeadlineExceeded},
+			wantErr: true,
+		},
+		{
+			name:       "vacuum error",
+			mock:       &mockMetricsStorage{vacuumErr: context.DeadlineExceeded},
+			wantErr:    true,
+			wantVacuum: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := NewMetrics(tt.mock, nil, 7*24*time.Hour)
+
+			err := s.maintenanceTick(context.Background())
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.wantVacuum, tt.mock.vacuumCalled)
 		})
 	}
 }

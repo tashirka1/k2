@@ -150,6 +150,11 @@ func startServer(cmd *cobra.Command, _ []string) error {
 			slog.Error("collector stopped", "error", err)
 		}
 	}()
+	go func() {
+		if err := metricsSvc.RunMaintenance(collectorCtx); err != nil {
+			slog.Error("maintenance stopped", "error", err)
+		}
+	}()
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
