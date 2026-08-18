@@ -27,14 +27,21 @@ type MetricsService interface {
 	RunMaintenance(ctx context.Context) error
 }
 
+type procCPUSample struct {
+	ts         time.Time
+	total      float64
+	createTime int64
+}
+
 type Metrics struct {
 	r         storage.MetricsStorage
 	dc        *client.Client
+	procCPU   map[int32]procCPUSample
 	retention time.Duration
 }
 
 func NewMetrics(r storage.MetricsStorage, dc *client.Client, retention time.Duration) *Metrics {
-	return &Metrics{r: r, dc: dc, retention: retention}
+	return &Metrics{r: r, dc: dc, retention: retention, procCPU: make(map[int32]procCPUSample)}
 }
 
 func (s *Metrics) QueryResources(ctx context.Context, metricType string, from, to time.Time) ([]model.ResourcePoint, error) {
@@ -286,7 +293,7 @@ func (s *Metrics) collectTick(ctx context.Context) error {
 		}
 	}
 
-	processPoints := collectProcessMetrics(now)
+	processPoints := s.collectProcessMetrics(now)
 	if len(processPoints) > 0 {
 		if err := s.r.InsertProcessBatch(ctx, processPoints); err != nil {
 			return err
@@ -328,8 +335,5 @@ func (s *Metrics) runTick(ctx context.Context) {
 }
 
 func (s *Metrics) maintenanceTick(ctx context.Context) error {
-	if err := s.r.PurgeOlderThan(ctx, s.retention); err != nil {
-		return err
-	}
-	return s.r.Vacuum(ctx)
+	return s.r.PurgeOlderThan(ctx, s.retention)
 }

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"runtime"
 	"time"
 
 	"github.com/tashirka1/k2/internal/metrics/model"
@@ -36,12 +37,13 @@ func collectContainerMetrics(ctx context.Context, now time.Time, cli *client.Cli
 		}
 		statsResult.Body.Close()
 
-		cpuDelta := float64(v.CPUStats.CPUUsage.TotalUsage - v.PreCPUStats.CPUUsage.TotalUsage)
-		systemDelta := float64(v.CPUStats.SystemUsage - v.PreCPUStats.SystemUsage)
-		cpuPercent := 0.0
-		if systemDelta > 0 && cpuDelta > 0 {
-			cpuPercent = (cpuDelta / systemDelta) * 100.0
-		}
+		cpuPercent := containerCPUPercent(
+			v.PreCPUStats.CPUUsage.TotalUsage,
+			v.CPUStats.CPUUsage.TotalUsage,
+			v.PreCPUStats.SystemUsage,
+			v.CPUStats.SystemUsage,
+			v.CPUStats.OnlineCPUs,
+		)
 
 		ramPercent := 0.0
 		if v.MemoryStats.Limit > 0 {
@@ -60,4 +62,16 @@ func collectContainerMetrics(ctx context.Context, now time.Time, cli *client.Cli
 		}
 	}
 	return points
+}
+
+func containerCPUPercent(prevTotal, total, prevSystem, system uint64, onlineCPUs uint32) float64 {
+	if prevTotal == 0 || total < prevTotal || system <= prevSystem {
+		return 0
+	}
+	if onlineCPUs == 0 {
+		onlineCPUs = uint32(runtime.NumCPU())
+	}
+	cpuDelta := float64(total - prevTotal)
+	systemDelta := float64(system - prevSystem)
+	return cpuDelta / systemDelta * float64(onlineCPUs) * 100.0
 }
