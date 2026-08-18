@@ -16,7 +16,6 @@ type mockMetricsStorage struct {
 	processHistoryErr   error
 	containerHistoryErr error
 	purgeErr            error
-	vacuumErr           error
 	latestProcesses     []model.ProcessPoint
 	latestContainers    []model.ContainerPoint
 	processResults      []model.ProcessPoint
@@ -26,7 +25,6 @@ type mockMetricsStorage struct {
 	containerHistory    []model.ContainerPoint
 	searchProcessCall   bool
 	searchContainer     bool
-	vacuumCalled        bool
 }
 
 func (m *mockMetricsStorage) InsertResourceBatch(_ context.Context, _ []model.ResourcePoint) error {
@@ -56,10 +54,6 @@ func (m *mockMetricsStorage) QueryLatestContainers(_ context.Context) ([]model.C
 
 func (m *mockMetricsStorage) PurgeOlderThan(_ context.Context, _ time.Duration) error {
 	return m.purgeErr
-}
-func (m *mockMetricsStorage) Vacuum(_ context.Context) error {
-	m.vacuumCalled = true
-	return m.vacuumErr
 }
 func (m *mockMetricsStorage) QueryProcessHistory(_ context.Context, _ int, _, _ time.Time) ([]model.ProcessPoint, error) {
 	return m.processHistory, m.processHistoryErr
@@ -534,26 +528,18 @@ func TestQueryContainerChart(t *testing.T) {
 
 func TestMaintenanceTick(t *testing.T) {
 	tests := []struct {
-		mock       *mockMetricsStorage
-		name       string
-		wantErr    bool
-		wantVacuum bool
+		mock    *mockMetricsStorage
+		name    string
+		wantErr bool
 	}{
 		{
-			name:       "success",
-			mock:       &mockMetricsStorage{},
-			wantVacuum: true,
+			name: "success",
+			mock: &mockMetricsStorage{},
 		},
 		{
-			name:    "purge error skips vacuum",
+			name:    "purge error",
 			mock:    &mockMetricsStorage{purgeErr: context.DeadlineExceeded},
 			wantErr: true,
-		},
-		{
-			name:       "vacuum error",
-			mock:       &mockMetricsStorage{vacuumErr: context.DeadlineExceeded},
-			wantErr:    true,
-			wantVacuum: true,
 		},
 	}
 
@@ -568,7 +554,6 @@ func TestMaintenanceTick(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
-			assert.Equal(t, tt.wantVacuum, tt.mock.vacuumCalled)
 		})
 	}
 }
