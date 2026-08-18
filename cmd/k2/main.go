@@ -15,6 +15,7 @@ import (
 	"github.com/tashirka1/k2"
 
 	auth_handler "github.com/tashirka1/k2/internal/auth/handler"
+	auth_model "github.com/tashirka1/k2/internal/auth/model"
 	auth_service "github.com/tashirka1/k2/internal/auth/service"
 	auth_storage "github.com/tashirka1/k2/internal/auth/storage"
 	"github.com/tashirka1/k2/internal/core/config"
@@ -75,12 +76,7 @@ func main() {
 				return fmt.Errorf("ensure credentials: %w", err)
 			}
 
-			fmt.Println(strings.Repeat("=", 60))
-			fmt.Println("  K2 Server Monitor")
-			fmt.Println(strings.Repeat("=", 60))
-			fmt.Printf("  Username:  %s\n", creds.Username)
-			fmt.Printf("  Password:  %s\n", creds.Password)
-			fmt.Println(strings.Repeat("=", 60))
+			printCredentials(creds)
 			return nil
 		},
 	}
@@ -91,6 +87,15 @@ func main() {
 		slog.Error("fatal", "error", err)
 		os.Exit(1)
 	}
+}
+
+func printCredentials(creds auth_model.Credentials) {
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println("  K2 Server Monitor")
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Printf("  Username:  %s\n", creds.Username)
+	fmt.Printf("  Password:  %s\n", creds.Password)
+	fmt.Println(strings.Repeat("=", 60))
 }
 
 func startServer(cmd *cobra.Command, _ []string) error {
@@ -123,12 +128,7 @@ func startServer(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("ensure credentials: %w", err)
 	}
 
-	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println("  K2 Server Monitor")
-	fmt.Println(strings.Repeat("=", 60))
-	fmt.Printf("  Username:  %s\n", creds.Username)
-	fmt.Printf("  Password:  %s\n", creds.Password)
-	fmt.Println(strings.Repeat("=", 60))
+	printCredentials(creds)
 
 	auth_handler.SetupHandlers(e, authSvc)
 
