@@ -24,6 +24,7 @@ type MetricsService interface {
 	SearchContainer(ctx context.Context, query string, s model.Sort) ([]model.ContainerPoint, error)
 	QueryProcessChart(ctx context.Context, pid int, param string, from, to time.Time) (model.ChartData, error)
 	QueryContainerChart(ctx context.Context, name, param string, from, to time.Time) (model.ChartData, error)
+	RunMaintenance(ctx context.Context) error
 }
 
 type Metrics struct {
@@ -299,9 +300,45 @@ func (s *Metrics) collectTick(ctx context.Context) error {
 		}
 	}
 
-	if err := s.r.PurgeOlderThan(ctx, s.retention); err != nil {
-		slog.Warn("purge old data failed", "error", err)
-	}
-
 	return nil
+}
+
+func (s *Metrics) RunMaintenance(ctx context.Context) error {
+	s.runTick(ctx)
+
+	for {
+		if err := waitUntilMidnight(ctx); err != nil {
+			return nil
+		}
+		s.runTick(ctx)
+	}
+}
+
+func (s *Metrics) runTick(ctx context.Context) {
+	if err := s.maintenanceTick(ctx); err != nil {
+		slog.Warn("maintenance tick failed", "error", err)
+		return
+	}
+	slog.Info("maintenance tick completed")
+}
+
+func (s *Metrics) maintenanceTick(ctx context.Context) error {
+	if err := s.r.PurgeOlderThan(ctx, s.retention); err != nil {
+		return err
+	}
+	return s.r.Vacuum(ctx)
+}
+
+func waitUntilMidnight(ctx context.Context) error {
+	now := time.Now()
+	next := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
+	timer := time.NewTimer(time.Until(next))
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }

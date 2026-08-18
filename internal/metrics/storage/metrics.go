@@ -23,6 +23,7 @@ type MetricsStorage interface {
 	QueryProcessHistory(ctx context.Context, pid int, from, to time.Time) ([]model.ProcessPoint, error)
 	QueryContainerHistory(ctx context.Context, name string, from, to time.Time) ([]model.ContainerPoint, error)
 	PurgeOlderThan(ctx context.Context, age time.Duration) error
+	Vacuum(ctx context.Context) error
 	SearchResource(ctx context.Context, query string) ([]model.ResourcePoint, error)
 	SearchProcess(ctx context.Context, query string) ([]model.ProcessPoint, error)
 	SearchContainer(ctx context.Context, query string) ([]model.ContainerPoint, error)
@@ -248,6 +249,11 @@ func (r *Metrics) PurgeOlderThan(ctx context.Context, age time.Duration) error {
 		}
 	}
 	return tx.Commit()
+}
+
+func (r *Metrics) Vacuum(ctx context.Context) error {
+	_, err := r.db.ExecContext(ctx, "VACUUM")
+	return err
 }
 
 func (r *Metrics) SearchResource(ctx context.Context, query string) ([]model.ResourcePoint, error) {
