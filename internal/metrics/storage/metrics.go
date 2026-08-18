@@ -16,8 +16,6 @@ type MetricsStorage interface {
 	InsertProcessBatch(ctx context.Context, points []model.ProcessPoint) error
 	InsertContainerBatch(ctx context.Context, points []model.ContainerPoint) error
 	QueryResources(ctx context.Context, metricType string, from, to time.Time) ([]model.ResourcePoint, error)
-	QueryProcesses(ctx context.Context, from, to time.Time) ([]model.ProcessPoint, error)
-	QueryContainers(ctx context.Context, from, to time.Time) ([]model.ContainerPoint, error)
 	QueryLatestProcesses(ctx context.Context) ([]model.ProcessPoint, error)
 	QueryLatestContainers(ctx context.Context) ([]model.ContainerPoint, error)
 	QueryProcessHistory(ctx context.Context, pid int, from, to time.Time) ([]model.ProcessPoint, error)
@@ -115,51 +113,7 @@ func (r *Metrics) QueryResources(ctx context.Context, metricType string, from, t
 	}
 	defer rows.Close()
 
-	var points []model.ResourcePoint
-	for rows.Next() {
-		var p model.ResourcePoint
-		if err := rows.Scan(&p.Timestamp, &p.Type, &p.Name, &p.Device, &p.Value); err != nil {
-			return nil, err
-		}
-		points = append(points, p)
-	}
-	return points, rows.Err()
-}
-
-func (r *Metrics) QueryProcesses(ctx context.Context, from, to time.Time) ([]model.ProcessPoint, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT timestamp, pid, name, cpu, ram, ram_bytes FROM metrics_process WHERE timestamp >= ? AND timestamp <= ? ORDER BY cpu DESC", from.UTC().Format(time.RFC3339), to.UTC().Format(time.RFC3339))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var points []model.ProcessPoint
-	for rows.Next() {
-		var p model.ProcessPoint
-		if err := rows.Scan(&p.Timestamp, &p.PID, &p.Name, &p.CPU, &p.RAM, &p.RAMBytes); err != nil {
-			return nil, err
-		}
-		points = append(points, p)
-	}
-	return points, rows.Err()
-}
-
-func (r *Metrics) QueryContainers(ctx context.Context, from, to time.Time) ([]model.ContainerPoint, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT timestamp, name, image, cpu, ram, ram_bytes FROM metrics_container WHERE timestamp >= ? AND timestamp <= ? ORDER BY cpu DESC", from.UTC().Format(time.RFC3339), to.UTC().Format(time.RFC3339))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var points []model.ContainerPoint
-	for rows.Next() {
-		var p model.ContainerPoint
-		if err := rows.Scan(&p.Timestamp, &p.Name, &p.Image, &p.CPU, &p.RAM, &p.RAMBytes); err != nil {
-			return nil, err
-		}
-		points = append(points, p)
-	}
-	return points, rows.Err()
+	return scanResourcePoints(rows)
 }
 
 func (r *Metrics) QueryLatestProcesses(ctx context.Context) ([]model.ProcessPoint, error) {
@@ -169,15 +123,7 @@ func (r *Metrics) QueryLatestProcesses(ctx context.Context) ([]model.ProcessPoin
 	}
 	defer rows.Close()
 
-	var points []model.ProcessPoint
-	for rows.Next() {
-		var p model.ProcessPoint
-		if err := rows.Scan(&p.Timestamp, &p.PID, &p.Name, &p.CPU, &p.RAM, &p.RAMBytes); err != nil {
-			return nil, err
-		}
-		points = append(points, p)
-	}
-	return points, rows.Err()
+	return scanProcessPoints(rows)
 }
 
 func (r *Metrics) QueryLatestContainers(ctx context.Context) ([]model.ContainerPoint, error) {
@@ -187,15 +133,7 @@ func (r *Metrics) QueryLatestContainers(ctx context.Context) ([]model.ContainerP
 	}
 	defer rows.Close()
 
-	var points []model.ContainerPoint
-	for rows.Next() {
-		var p model.ContainerPoint
-		if err := rows.Scan(&p.Timestamp, &p.Name, &p.Image, &p.CPU, &p.RAM, &p.RAMBytes); err != nil {
-			return nil, err
-		}
-		points = append(points, p)
-	}
-	return points, rows.Err()
+	return scanContainerPoints(rows)
 }
 
 func (r *Metrics) QueryProcessHistory(ctx context.Context, pid int, from, to time.Time) ([]model.ProcessPoint, error) {
@@ -205,15 +143,7 @@ func (r *Metrics) QueryProcessHistory(ctx context.Context, pid int, from, to tim
 	}
 	defer rows.Close()
 
-	var points []model.ProcessPoint
-	for rows.Next() {
-		var p model.ProcessPoint
-		if err := rows.Scan(&p.Timestamp, &p.CPU, &p.RAM, &p.RAMBytes); err != nil {
-			return nil, err
-		}
-		points = append(points, p)
-	}
-	return points, rows.Err()
+	return scanProcessHistoryPoints(rows)
 }
 
 func (r *Metrics) QueryContainerHistory(ctx context.Context, name string, from, to time.Time) ([]model.ContainerPoint, error) {
@@ -223,15 +153,7 @@ func (r *Metrics) QueryContainerHistory(ctx context.Context, name string, from, 
 	}
 	defer rows.Close()
 
-	var points []model.ContainerPoint
-	for rows.Next() {
-		var p model.ContainerPoint
-		if err := rows.Scan(&p.Timestamp, &p.CPU, &p.RAM, &p.RAMBytes); err != nil {
-			return nil, err
-		}
-		points = append(points, p)
-	}
-	return points, rows.Err()
+	return scanContainerHistoryPoints(rows)
 }
 
 func (r *Metrics) PurgeOlderThan(ctx context.Context, age time.Duration) error {
@@ -262,15 +184,7 @@ func (r *Metrics) SearchResource(ctx context.Context, query string) ([]model.Res
 	}
 	defer rows.Close()
 
-	var results []model.ResourcePoint
-	for rows.Next() {
-		var p model.ResourcePoint
-		if err := rows.Scan(&p.Timestamp, &p.Type, &p.Name, &p.Device, &p.Value); err != nil {
-			return nil, err
-		}
-		results = append(results, p)
-	}
-	return results, rows.Err()
+	return scanResourcePoints(rows)
 }
 
 func (r *Metrics) SearchProcess(ctx context.Context, query string) ([]model.ProcessPoint, error) {
@@ -285,15 +199,7 @@ func (r *Metrics) SearchProcess(ctx context.Context, query string) ([]model.Proc
 	}
 	defer rows.Close()
 
-	var results []model.ProcessPoint
-	for rows.Next() {
-		var p model.ProcessPoint
-		if err := rows.Scan(&p.Timestamp, &p.PID, &p.Name, &p.CPU, &p.RAM, &p.RAMBytes); err != nil {
-			return nil, err
-		}
-		results = append(results, p)
-	}
-	return results, rows.Err()
+	return scanProcessPoints(rows)
 }
 
 func (r *Metrics) SearchContainer(ctx context.Context, query string) ([]model.ContainerPoint, error) {
@@ -308,21 +214,73 @@ func (r *Metrics) SearchContainer(ctx context.Context, query string) ([]model.Co
 	}
 	defer rows.Close()
 
-	var results []model.ContainerPoint
-	for rows.Next() {
-		var p model.ContainerPoint
-		if err := rows.Scan(&p.Timestamp, &p.Name, &p.Image, &p.CPU, &p.RAM, &p.RAMBytes); err != nil {
-			return nil, err
-		}
-		results = append(results, p)
-	}
-	return results, rows.Err()
+	return scanContainerPoints(rows)
 }
 
 var nonWordChars = regexp.MustCompile(`[^a-zA-Z0-9_\-\s]+`)
 
 func sanitizeQuery(query string) string {
 	return strings.TrimSpace(nonWordChars.ReplaceAllString(query, " "))
+}
+
+func scanResourcePoints(rows *sql.Rows) ([]model.ResourcePoint, error) {
+	var points []model.ResourcePoint
+	for rows.Next() {
+		var p model.ResourcePoint
+		if err := rows.Scan(&p.Timestamp, &p.Type, &p.Name, &p.Device, &p.Value); err != nil {
+			return nil, err
+		}
+		points = append(points, p)
+	}
+	return points, rows.Err()
+}
+
+func scanProcessPoints(rows *sql.Rows) ([]model.ProcessPoint, error) {
+	var points []model.ProcessPoint
+	for rows.Next() {
+		var p model.ProcessPoint
+		if err := rows.Scan(&p.Timestamp, &p.PID, &p.Name, &p.CPU, &p.RAM, &p.RAMBytes); err != nil {
+			return nil, err
+		}
+		points = append(points, p)
+	}
+	return points, rows.Err()
+}
+
+func scanContainerPoints(rows *sql.Rows) ([]model.ContainerPoint, error) {
+	var points []model.ContainerPoint
+	for rows.Next() {
+		var p model.ContainerPoint
+		if err := rows.Scan(&p.Timestamp, &p.Name, &p.Image, &p.CPU, &p.RAM, &p.RAMBytes); err != nil {
+			return nil, err
+		}
+		points = append(points, p)
+	}
+	return points, rows.Err()
+}
+
+func scanProcessHistoryPoints(rows *sql.Rows) ([]model.ProcessPoint, error) {
+	var points []model.ProcessPoint
+	for rows.Next() {
+		var p model.ProcessPoint
+		if err := rows.Scan(&p.Timestamp, &p.CPU, &p.RAM, &p.RAMBytes); err != nil {
+			return nil, err
+		}
+		points = append(points, p)
+	}
+	return points, rows.Err()
+}
+
+func scanContainerHistoryPoints(rows *sql.Rows) ([]model.ContainerPoint, error) {
+	var points []model.ContainerPoint
+	for rows.Next() {
+		var p model.ContainerPoint
+		if err := rows.Scan(&p.Timestamp, &p.CPU, &p.RAM, &p.RAMBytes); err != nil {
+			return nil, err
+		}
+		points = append(points, p)
+	}
+	return points, rows.Err()
 }
 
 var _ MetricsStorage = (*Metrics)(nil)

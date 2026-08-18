@@ -13,13 +13,11 @@ func collectSystemMetrics(now time.Time) []model.ResourcePoint {
 	ts := now.UTC().Format(time.RFC3339)
 	var points []model.ResourcePoint
 
-	cpuPercent, err := cpu.Percent(0, false)
-	if err == nil && len(cpuPercent) > 0 {
+	if cpuPercent, err := cpu.Percent(0, false); err == nil && len(cpuPercent) > 0 {
 		points = append(points, model.ResourcePoint{Timestamp: ts, Type: "cpu", Name: "percent", Value: cpuPercent[0]})
 	}
 
-	m, err := mem.VirtualMemory()
-	if err == nil {
+	if m, err := mem.VirtualMemory(); err == nil {
 		points = append(points,
 			model.ResourcePoint{Timestamp: ts, Type: "ram", Name: "percent", Value: m.UsedPercent},
 			model.ResourcePoint{Timestamp: ts, Type: "ram", Name: "used", Value: float64(m.Used)},

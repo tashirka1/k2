@@ -39,12 +39,6 @@ func (m *mockMetricsStorage) InsertContainerBatch(_ context.Context, _ []model.C
 func (m *mockMetricsStorage) QueryResources(_ context.Context, _ string, _, _ time.Time) ([]model.ResourcePoint, error) {
 	return m.resources, nil
 }
-func (m *mockMetricsStorage) QueryProcesses(_ context.Context, _, _ time.Time) ([]model.ProcessPoint, error) {
-	return nil, nil
-}
-func (m *mockMetricsStorage) QueryContainers(_ context.Context, _, _ time.Time) ([]model.ContainerPoint, error) {
-	return nil, nil
-}
 func (m *mockMetricsStorage) QueryLatestProcesses(_ context.Context) ([]model.ProcessPoint, error) {
 	return m.latestProcesses, nil
 }
