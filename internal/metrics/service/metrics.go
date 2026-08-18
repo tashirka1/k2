@@ -53,7 +53,7 @@ func (s *Metrics) QueryChartData(ctx context.Context, metricType string, from, t
 	if err != nil {
 		return model.ChartData{}, err
 	}
-	return buildChartData(metricType, points), nil
+	return downsampleChartData(buildChartData(metricType, points), chartThreshold(to.Sub(from))), nil
 }
 
 func buildChartData(metricType string, points []model.ResourcePoint) model.ChartData {
@@ -153,7 +153,7 @@ func (s *Metrics) QueryProcessChart(ctx context.Context, pid int, param string, 
 	if err != nil {
 		return model.ChartData{}, err
 	}
-	return buildProcessChartData(param, points), nil
+	return downsampleChartData(buildProcessChartData(param, points), chartThreshold(to.Sub(from))), nil
 }
 
 func (s *Metrics) QueryContainerChart(ctx context.Context, name, param string, from, to time.Time) (model.ChartData, error) {
@@ -161,7 +161,7 @@ func (s *Metrics) QueryContainerChart(ctx context.Context, name, param string, f
 	if err != nil {
 		return model.ChartData{}, err
 	}
-	return buildContainerChartData(param, points), nil
+	return downsampleChartData(buildContainerChartData(param, points), chartThreshold(to.Sub(from))), nil
 }
 
 func buildProcessChartData(param string, points []model.ProcessPoint) model.ChartData {
