@@ -37,8 +37,8 @@ func NewDB(path string) (*sql.DB, error) {
 	}
 
 	// small pool keeps per-connection page cache (0.5 MiB) and sqlite heap bounded
-	db.SetMaxOpenConns(2)
-	db.SetMaxIdleConns(2)
+	db.SetMaxOpenConns(3)
+	db.SetMaxIdleConns(3)
 	db.SetConnMaxLifetime(15 * time.Minute)
 	db.SetConnMaxIdleTime(5 * time.Minute)
 
