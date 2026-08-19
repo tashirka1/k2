@@ -13,6 +13,14 @@ DB_FILE="${DATA_DIR}/k2.db"
 SERVICE_FILE="/etc/systemd/system/k2.service"
 DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/${ASSET}"
 
+OS="$(uname -s)"
+ARCH="$(uname -m)"
+if [[ "${OS}" != "Linux" || "${ARCH}" != "x86_64" ]]; then
+	echo "Warning: prebuilt binary is available only for linux-amd64, detected ${OS}/${ARCH}" >&2
+	echo "Build from source or use Docker instead" >&2
+	exit 1
+fi
+
 if [[ ${EUID} -ne 0 ]]; then
 	echo "This script must run as root" >&2
 	exit 1
