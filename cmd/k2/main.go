@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"time"
@@ -36,7 +37,18 @@ import (
 
 var cfg config.Config
 
+func applyGCLimits() {
+	if os.Getenv("GOGC") == "" {
+		debug.SetGCPercent(50)
+	}
+	if os.Getenv("GOMEMLIMIT") == "" {
+		debug.SetMemoryLimit(40 << 20)
+	}
+}
+
 func main() {
+	applyGCLimits()
+
 	rootCmd := &cobra.Command{
 		Use:   "k2",
 		Short: "K2 server monitoring tool",
