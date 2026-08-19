@@ -12,21 +12,22 @@ import (
 	"github.com/moby/moby/client"
 )
 
-func collectContainerMetrics(ctx context.Context, now time.Time, cli *client.Client) []model.ContainerPoint {
-	if cli == nil {
+func (s *Metrics) collectContainerMetrics(ctx context.Context, now time.Time) []model.ContainerPoint {
+	if s.dc == nil {
 		return nil
 	}
 
-	result, err := cli.ContainerList(ctx, client.ContainerListOptions{})
+	result, err := s.dc.ContainerList(ctx, client.ContainerListOptions{})
 	if err != nil {
 		return nil
 	}
 
 	ts := now.UTC().Format(time.RFC3339)
 	points := make([]model.ContainerPoint, 0, len(result.Items))
+	seen := make(map[string]bool, len(result.Items))
 
 	for _, c := range result.Items {
-		statsResult, err := cli.ContainerStats(ctx, c.ID, client.ContainerStatsOptions{})
+		statsResult, err := s.dc.ContainerStats(ctx, c.ID, client.ContainerStatsOptions{})
 		if err != nil {
 			continue
 		}
@@ -37,13 +38,8 @@ func collectContainerMetrics(ctx context.Context, now time.Time, cli *client.Cli
 		}
 		statsResult.Body.Close()
 
-		cpuPercent := containerCPUPercent(
-			v.PreCPUStats.CPUUsage.TotalUsage,
-			v.CPUStats.CPUUsage.TotalUsage,
-			v.PreCPUStats.SystemUsage,
-			v.CPUStats.SystemUsage,
-			v.CPUStats.OnlineCPUs,
-		)
+		seen[c.ID] = true
+		cpuPercent := s.updateContainerCPU(c.ID, v.CPUStats.CPUUsage.TotalUsage, v.CPUStats.SystemUsage, now)
 
 		ramPercent := 0.0
 		if v.MemoryStats.Limit > 0 {
@@ -61,7 +57,29 @@ func collectContainerMetrics(ctx context.Context, now time.Time, cli *client.Cli
 			})
 		}
 	}
+
+	s.pruneContainerCPU(seen)
+
 	return points
+}
+
+func (s *Metrics) pruneContainerCPU(seen map[string]bool) {
+	for id := range s.contCPU {
+		if !seen[id] {
+			delete(s.contCPU, id)
+		}
+	}
+}
+
+func (s *Metrics) updateContainerCPU(id string, total, system uint64, ts time.Time) float64 {
+	prev, ok := s.contCPU[id]
+	if ok {
+		percent := containerCPUPercent(prev.total, total, prev.system, system, 0)
+		s.contCPU[id] = containerCPUSample{ts: ts, total: total, system: system}
+		return percent
+	}
+	s.contCPU[id] = containerCPUSample{ts: ts, total: total, system: system}
+	return 0
 }
 
 func containerCPUPercent(prevTotal, total, prevSystem, system uint64, onlineCPUs uint32) float64 {

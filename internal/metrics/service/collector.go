@@ -46,7 +46,7 @@ func (s *Metrics) collectTick(ctx context.Context) error {
 		}
 	}
 
-	containerPoints := collectContainerMetrics(ctx, now, s.dc)
+	containerPoints := s.collectContainerMetrics(ctx, now)
 	if len(containerPoints) > 0 {
 		if err := s.r.InsertContainerBatch(ctx, containerPoints); err != nil {
 			return err
