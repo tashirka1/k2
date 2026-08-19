@@ -23,8 +23,9 @@ func NewDB(path string) (*sql.DB, error) {
 			"&_pragma=foreign_keys(ON)"+
 			"&_pragma=journal_mode(WAL)"+
 			"&_pragma=synchronous(NORMAL)"+
-			"&_pragma=temp_store(MEMORY)"+
-			"&_pragma=cache_size(-1024)"+
+			"&_pragma=temp_store(FILE)"+
+			"&_pragma=cache_size(-512)"+
+			"&_pragma=hard_heap_limit(16777216)"+
 			"&_pragma=auto_vacuum(FULL)"+
 			"&_pragma=journal_size_limit(67110000)"+
 			"&_pragma=page_size(4096)",
@@ -35,9 +36,9 @@ func NewDB(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 
-	// small pool keeps per-connection page cache (1 MiB) bounded
-	db.SetMaxOpenConns(4)
-	db.SetMaxIdleConns(4)
+	// small pool keeps per-connection page cache (0.5 MiB) and sqlite heap bounded
+	db.SetMaxOpenConns(2)
+	db.SetMaxIdleConns(2)
 	db.SetConnMaxLifetime(15 * time.Minute)
 	db.SetConnMaxIdleTime(5 * time.Minute)
 

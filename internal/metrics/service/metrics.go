@@ -29,15 +29,28 @@ type procCPUSample struct {
 	createTime int64
 }
 
+type containerCPUSample struct {
+	ts     time.Time
+	total  uint64
+	system uint64
+}
+
 type Metrics struct {
 	r         storage.MetricsStorage
 	dc        *client.Client
 	procCPU   map[int32]procCPUSample
+	contCPU   map[string]containerCPUSample
 	retention time.Duration
 }
 
 func NewMetrics(r storage.MetricsStorage, dc *client.Client, retention time.Duration) *Metrics {
-	return &Metrics{r: r, dc: dc, retention: retention, procCPU: make(map[int32]procCPUSample)}
+	return &Metrics{
+		r:         r,
+		dc:        dc,
+		retention: retention,
+		procCPU:   make(map[int32]procCPUSample),
+		contCPU:   make(map[string]containerCPUSample),
+	}
 }
 
 func (s *Metrics) QueryResources(ctx context.Context, metricType string, from, to time.Time) ([]model.ResourcePoint, error) {
