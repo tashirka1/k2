@@ -35,6 +35,8 @@ curl -fsSL https://raw.githubusercontent.com/tashirka1/k2/main/scripts/install.s
 
 The script downloads the latest release binary, installs it to `/usr/local/bin/k2`, and sets up a systemd service. Data lives in `/opt/k2`:
 
+> **Note:** the prebuilt binary is available only for **linux-amd64** (Linux x86_64). On other platforms the installer aborts with a warning — build from source or use Docker instead.
+
 - `/opt/k2/k2.env` — environment configuration (generated on first install)
 - `/opt/k2/k2.db` — SQLite database
 
