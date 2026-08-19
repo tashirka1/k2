@@ -6,6 +6,7 @@ Server monitoring tool for processes, containers, and system metrics. Built with
 
 - [Features](#features)
 - [Install](#install)
+  - [From source (`go install`)](#from-source-go-install)
   - [Bare-metal (systemd)](#bare-metal-systemd)
   - [Docker](#docker)
 - [Development](#development)
@@ -27,7 +28,7 @@ Server monitoring tool for processes, containers, and system metrics. Built with
 
 ## Install
 
-### Bare-metal (systemd)
+### Bare-metal (systemd) - Linux x86_64
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/tashirka1/k2/main/scripts/install.sh | sudo bash
@@ -52,6 +53,14 @@ make up
 ```
 
 The container runs on port 8000, mapped to the host via `K2_EXTERNAL_PORT` (default `9000`). The `./db/` directory and `.env` are mounted for persistence.
+
+### From source (`go install`)
+
+```bash
+go install github.com/tashirka1/k2/cmd/k2@latest
+```
+
+Installs the `k2` binary to your `GOBIN` (usually `~/go/bin`). Requires Go and internet access to fetch the latest release.
 
 ## Development
 
