@@ -6,9 +6,10 @@ Server monitoring tool for processes, containers, and system metrics. Built with
 
 - [Features](#features)
 - [Install](#install)
-  - [From source (`go install`)](#from-source-go-install)
   - [Bare-metal (systemd)](#bare-metal-systemd)
   - [Docker](#docker)
+  - [From source (`go install`)](#from-source-go-install)
+    - [Run as a systemd service](#run-as-a-systemd-service)
 - [Development](#development)
 - [Build](#build)
 - [Configuration](#configuration)
@@ -28,7 +29,7 @@ Server monitoring tool for processes, containers, and system metrics. Built with
 
 ## Install
 
-### Bare-metal (systemd) - Linux x86_64
+### Bare-metal (systemd)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/tashirka1/k2/main/scripts/install.sh | sudo bash
@@ -61,6 +62,42 @@ go install github.com/tashirka1/k2/cmd/k2@latest
 ```
 
 Installs the `k2` binary to your `GOBIN` (usually `~/go/bin`). Requires Go and internet access to fetch the latest release.
+
+### Run as a systemd service
+
+Create a config file and the database directory:
+
+```bash
+sudo mkdir -p /opt/k2
+sudo cp env-example /opt/k2/k2.env
+sudoedit /opt/k2/k2.env   # set K2_SESSION_KEY, K2_USERNAME, K2_PASSWORD
+```
+
+Create `/etc/systemd/system/k2.service` (replace `ExecStart` with your `GOBIN` path, see `go env GOBIN`):
+
+```ini
+[Unit]
+Description=K2 server monitoring
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/home/user/go/bin/k2
+WorkingDirectory=/opt/k2
+EnvironmentFile=/opt/k2/k2.env
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Start the service:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now k2
+```
 
 ## Development
 
