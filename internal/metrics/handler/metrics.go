@@ -16,15 +16,16 @@ import (
 )
 
 type Metrics struct {
-	s service.MetricsService
+	s               service.MetricsService
+	collectInterval string
 }
 
-func NewMetrics(s service.MetricsService) *Metrics {
-	return &Metrics{s: s}
+func NewMetrics(s service.MetricsService, collectInterval string) *Metrics {
+	return &Metrics{s: s, collectInterval: collectInterval}
 }
 
 func (h *Metrics) System(c echo.Context) error {
-	return core_view.RenderTemplate(c, view.System())
+	return core_view.RenderTemplate(c, view.System(h.collectInterval))
 }
 
 func parseSort(c echo.Context) model.Sort {
@@ -39,7 +40,7 @@ func (h *Metrics) Processes(c echo.Context) error {
 		slog.Error("processes query failed", "error", err)
 		return c.String(http.StatusInternalServerError, "query failed")
 	}
-	return core_view.RenderTemplate(c, view.ProcessesPage(points, q, s))
+	return core_view.RenderTemplate(c, view.ProcessesPage(points, q, s, h.collectInterval))
 }
 
 func (h *Metrics) Containers(c echo.Context) error {
@@ -50,7 +51,7 @@ func (h *Metrics) Containers(c echo.Context) error {
 		slog.Error("containers query failed", "error", err)
 		return c.String(http.StatusInternalServerError, "query failed")
 	}
-	return core_view.RenderTemplate(c, view.ContainersPage(points, q, s))
+	return core_view.RenderTemplate(c, view.ContainersPage(points, q, s, h.collectInterval))
 }
 
 func parseDuration(s string, defaultVal time.Duration) time.Duration {
@@ -88,11 +89,11 @@ func (h *Metrics) ProcessHistory(c echo.Context) error {
 	if err != nil {
 		return c.String(http.StatusBadRequest, "invalid pid")
 	}
-	return core_view.RenderTemplate(c, view.ProcessHistoryPage(pid))
+	return core_view.RenderTemplate(c, view.ProcessHistoryPage(pid, h.collectInterval))
 }
 
 func (h *Metrics) ContainerHistory(c echo.Context) error {
-	return core_view.RenderTemplate(c, view.ContainerHistoryPage(c.Param("name")))
+	return core_view.RenderTemplate(c, view.ContainerHistoryPage(c.Param("name"), h.collectInterval))
 }
 
 func validChartParam(p string) bool {
@@ -159,7 +160,7 @@ func (h *Metrics) Search(c echo.Context) error {
 		if isHX {
 			return core_view.RenderTemplate(c, view.ProcessResults(results, q, s))
 		}
-		return core_view.RenderTemplate(c, view.ProcessesPage(results, q, s))
+		return core_view.RenderTemplate(c, view.ProcessesPage(results, q, s, h.collectInterval))
 	case "container":
 		results, err := h.s.SearchContainer(ctx, q, s)
 		if err != nil {
@@ -169,7 +170,7 @@ func (h *Metrics) Search(c echo.Context) error {
 		if isHX {
 			return core_view.RenderTemplate(c, view.ContainerResults(results, q, s))
 		}
-		return core_view.RenderTemplate(c, view.ContainersPage(results, q, s))
+		return core_view.RenderTemplate(c, view.ContainersPage(results, q, s, h.collectInterval))
 	case "resource":
 		results, err := h.s.SearchResource(ctx, q)
 		if err != nil {
@@ -182,8 +183,8 @@ func (h *Metrics) Search(c echo.Context) error {
 	}
 }
 
-func SetupHandlers(e *echo.Echo, s service.MetricsService) {
-	h := NewMetrics(s)
+func SetupHandlers(e *echo.Echo, s service.MetricsService, collectInterval string) {
+	h := NewMetrics(s, collectInterval)
 
 	group := e.Group("/metrics", session.RequireAuth())
 	group.GET("/system", h.System)

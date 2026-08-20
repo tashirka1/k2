@@ -30,6 +30,11 @@ nav {
     width: 12rem;
 }
 
+.collect-interval {
+    color: var(--pico-muted-color);
+    margin-left: 0.25rem;
+}
+
 .nav-desktop {
     display: flex;
     gap: 1rem;

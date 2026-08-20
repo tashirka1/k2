@@ -8,8 +8,8 @@ import (
 	"github.com/tashirka1/k2/internal/metrics/model"
 )
 
-templ System() {
-	@core_view.Base("System", 1) {
+templ System(collectInterval string) {
+	@core_view.Base("System", 1, collectInterval) {
 		<article>
 			<header><strong>System Monitor</strong></header>
 			<select id="period" aria-label="Chart period">
@@ -37,8 +37,8 @@ templ System() {
 	}
 }
 
-templ ProcessHistoryPage(pid int) {
-	@core_view.Base("Process History", 1) {
+templ ProcessHistoryPage(pid int, collectInterval string) {
+	@core_view.Base("Process History", 1, collectInterval) {
 		<article>
 			<header><strong>Process { pid }</strong></header>
 			<select id="period" aria-label="Chart period">
@@ -66,8 +66,8 @@ templ ProcessHistoryPage(pid int) {
 	}
 }
 
-templ ContainerHistoryPage(name string) {
-	@core_view.Base("Container History", 1) {
+templ ContainerHistoryPage(name string, collectInterval string) {
+	@core_view.Base("Container History", 1, collectInterval) {
 		<article>
 			<header><strong>Container { name }</strong></header>
 			<select id="period" aria-label="Chart period">
@@ -95,8 +95,8 @@ templ ContainerHistoryPage(name string) {
 	}
 }
 
-templ ProcessesPage(points []model.ProcessPoint, q string, s model.Sort) {
-	@core_view.Base("Processes", 1) {
+templ ProcessesPage(points []model.ProcessPoint, q string, s model.Sort, collectInterval string) {
+	@core_view.Base("Processes", 1, collectInterval) {
 		<article>
 			<header><strong>Process Monitor</strong></header>
 			<input type="search" name="q" placeholder="Search processes..." value={ q } hx-get={ searchURL("process", s) } hx-target="#process-results" hx-swap="outerHTML" hx-trigger="keyup changed delay:300ms" hx-push-url="true"/>
@@ -138,8 +138,8 @@ templ ProcessResults(points []model.ProcessPoint, q string, s model.Sort) {
 	</div>
 }
 
-templ ContainersPage(points []model.ContainerPoint, q string, s model.Sort) {
-	@core_view.Base("Containers", 1) {
+templ ContainersPage(points []model.ContainerPoint, q string, s model.Sort, collectInterval string) {
+	@core_view.Base("Containers", 1, collectInterval) {
 		<article>
 			<header><strong>Container Monitor</strong></header>
 			<input type="search" name="q" placeholder="Search containers..." value={ q } hx-get={ searchURL("container", s) } hx-target="#container-results" hx-swap="outerHTML" hx-trigger="keyup changed delay:300ms" hx-push-url="true"/>
