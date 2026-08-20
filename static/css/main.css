@@ -35,6 +35,11 @@ nav {
     margin-left: 0.25rem;
 }
 
+.nav-refresh {
+    width: auto;
+    margin: 0;
+}
+
 .nav-desktop {
     display: flex;
     gap: 1rem;

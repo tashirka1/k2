@@ -106,7 +106,7 @@ templ ProcessesPage(points []model.ProcessPoint, q string, s model.Sort, collect
 }
 
 templ ProcessResults(points []model.ProcessPoint, q string, s model.Sort) {
-	<div id="process-results" hx-get={ searchURL("process", s) } hx-trigger="every 5s" hx-include="[name='q']" hx-target="#process-results" hx-swap="outerHTML">
+	<div id="process-results" hx-get={ searchURL("process", s) } hx-trigger="update-data" hx-include="[name='q']" hx-target="#process-results" hx-swap="outerHTML">
 		if len(points) == 0 {
 			<small>No processes found</small>
 		} else {
@@ -149,7 +149,7 @@ templ ContainersPage(points []model.ContainerPoint, q string, s model.Sort, coll
 }
 
 templ ContainerResults(points []model.ContainerPoint, q string, s model.Sort) {
-	<div id="container-results" hx-get={ searchURL("container", s) } hx-trigger="every 5s" hx-include="[name='q']" hx-target="#container-results" hx-swap="outerHTML">
+	<div id="container-results" hx-get={ searchURL("container", s) } hx-trigger="update-data" hx-include="[name='q']" hx-target="#container-results" hx-swap="outerHTML">
 		if len(points) == 0 {
 			<small>No containers found</small>
 		} else {

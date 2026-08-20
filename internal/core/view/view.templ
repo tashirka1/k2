@@ -11,6 +11,15 @@ templ Nav(collectInterval string) {
 					<small class="collect-interval">{ collectInterval }</small>
 				}
 			</li>
+			<li>
+				<select id="refresh" class="nav-refresh" aria-label="Auto-refresh" title="Auto-refresh">
+					<option value="off">Off</option>
+					<option value="5s">5s</option>
+					<option value="10s">10s</option>
+					<option value="30s">30s</option>
+					<option value="1m">1m</option>
+				</select>
+			</li>
 		</ul>
 		<ul class="nav-desktop">
 			<li><a href="/metrics/system">System</a></li>
