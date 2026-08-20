@@ -71,7 +71,45 @@ function bindPeriod() {
 	});
 }
 
+var refreshTimer = null;
+var refreshKey = 'k2_refresh';
+
+function refreshMs(value) {
+	if (value === 'off') return 0;
+	var m = value.match(/^(\d+)([sm])$/);
+	if (!m) return 0;
+	var n = parseInt(m[1], 10) * (m[2] === 'm' ? 60000 : 1000);
+	return n;
+}
+
+function fireUpdate() {
+	document.querySelectorAll('[hx-trigger="update-data"]').forEach(function (el) {
+		el.dispatchEvent(new Event('update-data'));
+	});
+	initCharts();
+}
+
+function applyRefresh() {
+	clearInterval(refreshTimer);
+	refreshTimer = null;
+	var ms = refreshMs(document.getElementById('refresh').value);
+	if (ms > 0) refreshTimer = setInterval(fireUpdate, ms);
+}
+
+function bindRefresh() {
+	var sel = document.getElementById('refresh');
+	if (!sel || sel.dataset.bound) return;
+	sel.dataset.bound = '1';
+	sel.value = localStorage.getItem(refreshKey) || 'off';
+	sel.addEventListener('change', function () {
+		localStorage.setItem(refreshKey, this.value);
+		applyRefresh();
+	});
+	applyRefresh();
+}
+
 document.addEventListener('DOMContentLoaded', initCharts);
 document.addEventListener('htmx:afterSettle', initCharts);
 document.addEventListener('DOMContentLoaded', bindPeriod);
 document.addEventListener('htmx:afterSettle', bindPeriod);
+document.addEventListener('DOMContentLoaded', bindRefresh);

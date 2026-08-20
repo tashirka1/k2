@@ -3,7 +3,7 @@ package view
 import core_view "github.com/tashirka1/k2/internal/core/view"
 
 templ Root() {
-	@core_view.Base("K2 Monitor", 0) {
+	@core_view.Base("K2 Monitor", 0, "") {
 		<article>
 			<header><strong>K2 Server Monitor</strong></header>
 			<p>Welcome to K2, a server monitoring tool.</p>
@@ -13,7 +13,7 @@ templ Root() {
 }
 
 templ Login(userId int) {
-	@core_view.Base("K2 Monitor", userId) {
+	@core_view.Base("K2 Monitor", userId, "") {
 		<div class="grid">
 			<article style="margin: auto">
 				<header><strong>Login</strong></header>
