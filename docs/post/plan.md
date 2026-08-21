@@ -31,7 +31,7 @@ Key facts for content:
 | **Habr** | RU spoke: adaptations of master articles, canonical to the site | longreads | 1 article / 2 wks |
 | **X** | EN feed | teasers, feature threads, screenshots | 3–5 posts / wk |
 | **dev.to** | EN spoke: adaptations of EN master articles, canonical to the site | longreads | 1 article / 2 wks |
-| **YouTube** | EN video (RU subtitles) | screencasts + Shorts | 1 screencast + 3–4 Shorts / mo |
+| **YouTube** | RU video | screencasts + Shorts | 1 screencast + 3–4 Shorts / mo |
 | **Telegram** | RU community, ties everything together | announcements, screenshots, changelog | 3–5 posts / wk |
 | **GitHub** | showcase: README, GIF demos, releases | — | on every release |
 
