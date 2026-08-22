@@ -19,13 +19,19 @@ Server monitoring tool for processes, containers, and system metrics. Built with
 
 ## Features
 
-- Real-time metrics for **system** (CPU, memory, disk, network), **processes**, and **containers** (via Docker API)
-- Live-updating web UI powered by htmx and Chart.js, with a responsive PicoCSS layout
-- SQLite storage with metrics retention and automatic purge
-- Admin authentication with login form, session cookies, and account lockout after failed attempts
-- One-line **standalone binary** installation (`curl | sudo bash`) with a systemd service
-- Runs as a **single static binary without CGO** — no runtime dependencies, works on minimal hardware
-- Deployable via bare-metal systemd or Docker Compose
+| Feature | Description |
+|---------|-------------|
+| System monitoring | CPU, memory and disk usage tracking |
+| Process monitoring | CPU, memory usage and RAM consumption per process |
+| Container monitoring | CPU and memory metrics per Docker container |
+| Historical data | Persistent storage of system, process and container metrics with retention and automatic cleanup |
+| History charts | Interactive charts with selectable periods (1 hour to 30 days) |
+| Live updates | Auto-refreshing interface with configurable interval |
+| Search and filtering | Quick search across processes, containers and resources |
+| Sorting | Sortable tables by name, CPU, memory and other fields |
+| Authentication | Secure login with session management and lockout on failed attempts |
+| Configuration | Environment-based setup with in-app configuration viewer |
+| Deployment | Single binary with no dependencies; supports systemd and Docker |
 
 ## Install
 
