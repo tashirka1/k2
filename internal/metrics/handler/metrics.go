@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/tashirka1/k2/internal/core/config"
 	"github.com/tashirka1/k2/internal/core/session"
 	core_view "github.com/tashirka1/k2/internal/core/view"
 	"github.com/tashirka1/k2/internal/metrics/model"
@@ -16,16 +17,16 @@ import (
 )
 
 type Metrics struct {
-	s               service.MetricsService
-	collectInterval string
+	s   service.MetricsService
+	cfg config.Config
 }
 
-func NewMetrics(s service.MetricsService, collectInterval string) *Metrics {
-	return &Metrics{s: s, collectInterval: collectInterval}
+func NewMetrics(s service.MetricsService, cfg config.Config) *Metrics {
+	return &Metrics{s: s, cfg: cfg}
 }
 
 func (h *Metrics) System(c echo.Context) error {
-	return core_view.RenderTemplate(c, view.System(h.collectInterval))
+	return core_view.RenderTemplate(c, view.System(h.cfg))
 }
 
 func parseSort(c echo.Context) model.Sort {
@@ -40,7 +41,7 @@ func (h *Metrics) Processes(c echo.Context) error {
 		slog.Error("processes query failed", "error", err)
 		return c.String(http.StatusInternalServerError, "query failed")
 	}
-	return core_view.RenderTemplate(c, view.ProcessesPage(points, q, s, h.collectInterval))
+	return core_view.RenderTemplate(c, view.ProcessesPage(points, q, s, h.cfg))
 }
 
 func (h *Metrics) Containers(c echo.Context) error {
@@ -51,7 +52,7 @@ func (h *Metrics) Containers(c echo.Context) error {
 		slog.Error("containers query failed", "error", err)
 		return c.String(http.StatusInternalServerError, "query failed")
 	}
-	return core_view.RenderTemplate(c, view.ContainersPage(points, q, s, h.collectInterval))
+	return core_view.RenderTemplate(c, view.ContainersPage(points, q, s, h.cfg))
 }
 
 func parseDuration(s string, defaultVal time.Duration) time.Duration {
@@ -89,11 +90,11 @@ func (h *Metrics) ProcessHistory(c echo.Context) error {
 	if err != nil {
 		return c.String(http.StatusBadRequest, "invalid pid")
 	}
-	return core_view.RenderTemplate(c, view.ProcessHistoryPage(pid, h.collectInterval))
+	return core_view.RenderTemplate(c, view.ProcessHistoryPage(pid, h.cfg))
 }
 
 func (h *Metrics) ContainerHistory(c echo.Context) error {
-	return core_view.RenderTemplate(c, view.ContainerHistoryPage(c.Param("name"), h.collectInterval))
+	return core_view.RenderTemplate(c, view.ContainerHistoryPage(c.Param("name"), h.cfg))
 }
 
 func validChartParam(p string) bool {
@@ -160,7 +161,7 @@ func (h *Metrics) Search(c echo.Context) error {
 		if isHX {
 			return core_view.RenderTemplate(c, view.ProcessResults(results, q, s))
 		}
-		return core_view.RenderTemplate(c, view.ProcessesPage(results, q, s, h.collectInterval))
+		return core_view.RenderTemplate(c, view.ProcessesPage(results, q, s, h.cfg))
 	case "container":
 		results, err := h.s.SearchContainer(ctx, q, s)
 		if err != nil {
@@ -170,7 +171,7 @@ func (h *Metrics) Search(c echo.Context) error {
 		if isHX {
 			return core_view.RenderTemplate(c, view.ContainerResults(results, q, s))
 		}
-		return core_view.RenderTemplate(c, view.ContainersPage(results, q, s, h.collectInterval))
+		return core_view.RenderTemplate(c, view.ContainersPage(results, q, s, h.cfg))
 	case "resource":
 		results, err := h.s.SearchResource(ctx, q)
 		if err != nil {
@@ -183,8 +184,8 @@ func (h *Metrics) Search(c echo.Context) error {
 	}
 }
 
-func SetupHandlers(e *echo.Echo, s service.MetricsService, collectInterval string) {
-	h := NewMetrics(s, collectInterval)
+func SetupHandlers(e *echo.Echo, s service.MetricsService, cfg config.Config) {
+	h := NewMetrics(s, cfg)
 
 	group := e.Group("/metrics", session.RequireAuth())
 	group.GET("/system", h.System)

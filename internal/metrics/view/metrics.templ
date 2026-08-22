@@ -4,12 +4,13 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/tashirka1/k2/internal/core/config"
 	core_view "github.com/tashirka1/k2/internal/core/view"
 	"github.com/tashirka1/k2/internal/metrics/model"
 )
 
-templ System(collectInterval string) {
-	@core_view.Base("System", 1, collectInterval) {
+templ System(cfg config.Config) {
+	@core_view.Base("System", 1, cfg) {
 		<article>
 			<header><strong>System Monitor</strong></header>
 			<select id="period" aria-label="Chart period">
@@ -37,8 +38,8 @@ templ System(collectInterval string) {
 	}
 }
 
-templ ProcessHistoryPage(pid int, collectInterval string) {
-	@core_view.Base("Process History", 1, collectInterval) {
+templ ProcessHistoryPage(pid int, cfg config.Config) {
+	@core_view.Base("Process History", 1, cfg) {
 		<article>
 			<header><strong>Process { pid }</strong></header>
 			<select id="period" aria-label="Chart period">
@@ -66,8 +67,8 @@ templ ProcessHistoryPage(pid int, collectInterval string) {
 	}
 }
 
-templ ContainerHistoryPage(name string, collectInterval string) {
-	@core_view.Base("Container History", 1, collectInterval) {
+templ ContainerHistoryPage(name string, cfg config.Config) {
+	@core_view.Base("Container History", 1, cfg) {
 		<article>
 			<header><strong>Container { name }</strong></header>
 			<select id="period" aria-label="Chart period">
@@ -95,8 +96,8 @@ templ ContainerHistoryPage(name string, collectInterval string) {
 	}
 }
 
-templ ProcessesPage(points []model.ProcessPoint, q string, s model.Sort, collectInterval string) {
-	@core_view.Base("Processes", 1, collectInterval) {
+templ ProcessesPage(points []model.ProcessPoint, q string, s model.Sort, cfg config.Config) {
+	@core_view.Base("Processes", 1, cfg) {
 		<article>
 			<header><strong>Process Monitor</strong></header>
 			<input type="search" name="q" placeholder="Search processes..." value={ q } hx-get={ searchURL("process", s) } hx-target="#process-results" hx-swap="outerHTML" hx-trigger="keyup changed delay:300ms" hx-push-url="true"/>
@@ -138,8 +139,8 @@ templ ProcessResults(points []model.ProcessPoint, q string, s model.Sort) {
 	</div>
 }
 
-templ ContainersPage(points []model.ContainerPoint, q string, s model.Sort, collectInterval string) {
-	@core_view.Base("Containers", 1, collectInterval) {
+templ ContainersPage(points []model.ContainerPoint, q string, s model.Sort, cfg config.Config) {
+	@core_view.Base("Containers", 1, cfg) {
 		<article>
 			<header><strong>Container Monitor</strong></header>
 			<input type="search" name="q" placeholder="Search containers..." value={ q } hx-get={ searchURL("container", s) } hx-target="#container-results" hx-swap="outerHTML" hx-trigger="keyup changed delay:300ms" hx-push-url="true"/>

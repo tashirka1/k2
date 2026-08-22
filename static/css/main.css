@@ -30,9 +30,21 @@ nav {
     width: 12rem;
 }
 
-.collect-interval {
-    color: var(--pico-muted-color);
-    margin-left: 0.25rem;
+#config-modal {
+    padding: 0;
+    border: none;
+    max-width: 640px;
+    width: 90%;
+}
+
+#config-modal article {
+    margin: 0;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+#config-modal::backdrop {
+    background: rgba(0, 0, 0, 0.5);
 }
 
 .nav-refresh {
