@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS metrics_resource (
     value REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_resource_ts ON metrics_resource(timestamp);
+CREATE INDEX IF NOT EXISTS idx_resource_type_ts ON metrics_resource(type, timestamp);
 
 CREATE TABLE IF NOT EXISTS metrics_process (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
