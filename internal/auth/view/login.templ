@@ -1,9 +1,12 @@
 package view
 
-import core_view "github.com/tashirka1/k2/internal/core/view"
+import (
+	"github.com/tashirka1/k2/internal/core/config"
+	core_view "github.com/tashirka1/k2/internal/core/view"
+)
 
 templ Root() {
-	@core_view.Base("K2 Monitor", 0, "") {
+	@core_view.Base("K2 Monitor", 0, config.Config{}) {
 		<article>
 			<header><strong>K2 Server Monitor</strong></header>
 			<p>Welcome to K2, a server monitoring tool.</p>
@@ -13,7 +16,7 @@ templ Root() {
 }
 
 templ Login(userId int) {
-	@core_view.Base("K2 Monitor", userId, "") {
+	@core_view.Base("K2 Monitor", userId, config.Config{}) {
 		<div class="grid">
 			<article style="margin: auto">
 				<header><strong>Login</strong></header>
