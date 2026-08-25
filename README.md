@@ -152,6 +152,4 @@ Create a `.env` file in the project root (see `env-example`):
 
 ![K2 containers dashboard](screenshots/containers.png)
 
-## Donate
 
-Support the project on [Boosty](https://boosty.to/tashirka1).
