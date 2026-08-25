@@ -19,7 +19,6 @@
 GitHub:   https://github.com/tashirka1/k2
 Установка:
 curl -fsSL https://raw.githubusercontent.com/tashirka1/k2/main/scripts/install.sh | sudo bash
-Boosty:   https://boosty.to/tashirka1
 ```
 
 **Базовые теги (добавлять к каждому видео):**
