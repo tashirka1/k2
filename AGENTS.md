@@ -90,14 +90,41 @@ Click/Form (htmx) ➔ handler (parsing) ➔ service (use case via interface) ➔
 
 ## 🔧 Build and Run
 - `make build-bin` — build binary to `bin/` (templ generate + go build)
-- `make check` — check code health and formatting (NOTE: use every time you change something to avoid breakage)
+- `make check` — check code health and formatting
 - `make dev` — live-reload via air
 
-### Go codebase rules
-1. After any code change, YOU MUST run `make check`.
-2. If `make check` fails (exit code != 0):
+## 🧰 AI Harness (Agent Self-Verification Protocol)
+
+### Edit Loop
+1. Before changing code, study adjacent files and module conventions.
+2. After any code change or addition, YOU MUST run `make check`.
+3. If `make check` fails (exit code != 0):
    - Do not ignore console output.
-   - Analyze the logs.
-   - Fix syntax errors and linter warnings first, then fix failing tests.
+   - Analyze the logs: fix syntax errors and linter warnings first, then failing tests.
    - Re-run `make check` after fixing.
-3. Code is considered ready only when `make check` passes completely without warnings.
+4. Limit — 3 fix iterations without progress: stop and ask the user for help.
+
+### Smoke Check (`make dev`)
+Mandatory for changes in `handler/`, `service/`, `views/`, or migrations:
+1. Run `make dev`, verify the server starts without errors in the logs.
+2. Verify the key scenario via an HTTP request (`curl`): expected status and correct HTML fragment.
+3. Stop the server.
+For changes only in `storage/` or tests, the smoke check is optional.
+
+### Definition of Done
+- `make check` passes completely without errors and warnings.
+- New logic is covered by table-driven tests (Main + Exceptional Course).
+- Smoke check passed (if applicable).
+- No violations of the «Hard Constraints» from this file.
+
+### Completion Prohibitions
+- Never declare a task done without a green `make check` (+ smoke check, if applicable).
+- Never commit without an explicit request from the user.
+- Never leave TODOs and stubs instead of implementation.
+
+### Escalation
+Stop and ask the user when:
+- requirements are ambiguous;
+- the task conflicts with architectural rules;
+- tests fail outside the scope of your changes;
+- the iteration limit is exhausted.
