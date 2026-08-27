@@ -26,6 +26,39 @@ type ContainerPoint struct {
 	RAMBytes  int64
 }
 
+type ResourceBucket struct {
+	Timestamp string
+	Avg       float64
+	Min       float64
+	Max       float64
+}
+
+type ProcessBucket struct {
+	Timestamp   string
+	CPUAvg      float64
+	CPUMin      float64
+	CPUMax      float64
+	RAMAvg      float64
+	RAMMin      float64
+	RAMMax      float64
+	RAMBytesAvg int64
+	RAMBytesMin int64
+	RAMBytesMax int64
+}
+
+type ContainerBucket struct {
+	Timestamp   string
+	CPUAvg      float64
+	CPUMin      float64
+	CPUMax      float64
+	RAMAvg      float64
+	RAMMin      float64
+	RAMMax      float64
+	RAMBytesAvg int64
+	RAMBytesMin int64
+	RAMBytesMax int64
+}
+
 type Sort struct {
 	Field string
 	Desc  bool

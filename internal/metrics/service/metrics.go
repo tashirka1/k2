@@ -54,7 +54,15 @@ func NewMetrics(r storage.MetricsStorage, dc *client.Client, retention time.Dura
 }
 
 func (s *Metrics) QueryResources(ctx context.Context, metricType string, from, to time.Time) ([]model.ResourcePoint, error) {
-	return s.r.QueryResources(ctx, metricType, from, to)
+	buckets, err := s.r.QueryResources(ctx, metricType, from, to, 0)
+	if err != nil {
+		return nil, err
+	}
+	points := make([]model.ResourcePoint, len(buckets))
+	for i, b := range buckets {
+		points[i] = model.ResourcePoint{Timestamp: b.Timestamp, Type: metricType, Name: "percent", Value: b.Avg}
+	}
+	return points, nil
 }
 
 func (s *Metrics) SearchResource(ctx context.Context, query string) ([]model.ResourcePoint, error) {

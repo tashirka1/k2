@@ -15,11 +15,11 @@ type MetricsStorage interface {
 	InsertResourceBatch(ctx context.Context, points []model.ResourcePoint) error
 	InsertProcessBatch(ctx context.Context, points []model.ProcessPoint) error
 	InsertContainerBatch(ctx context.Context, points []model.ContainerPoint) error
-	QueryResources(ctx context.Context, metricType string, from, to time.Time) ([]model.ResourcePoint, error)
+	QueryResources(ctx context.Context, metricType string, from, to time.Time, bucketSec int) ([]model.ResourceBucket, error)
 	QueryLatestProcesses(ctx context.Context) ([]model.ProcessPoint, error)
 	QueryLatestContainers(ctx context.Context) ([]model.ContainerPoint, error)
-	QueryProcessHistory(ctx context.Context, pid int, from, to time.Time) ([]model.ProcessPoint, error)
-	QueryContainerHistory(ctx context.Context, name string, from, to time.Time) ([]model.ContainerPoint, error)
+	QueryProcessHistory(ctx context.Context, pid int, from, to time.Time, bucketSec int) ([]model.ProcessBucket, error)
+	QueryContainerHistory(ctx context.Context, name string, from, to time.Time, bucketSec int) ([]model.ContainerBucket, error)
 	PurgeOlderThan(ctx context.Context, age time.Duration) error
 	SearchResource(ctx context.Context, query string) ([]model.ResourcePoint, error)
 	SearchProcess(ctx context.Context, query string) ([]model.ProcessPoint, error)
@@ -106,14 +106,44 @@ func (r *Metrics) InsertContainerBatch(ctx context.Context, points []model.Conta
 	return tx.Commit()
 }
 
-func (r *Metrics) QueryResources(ctx context.Context, metricType string, from, to time.Time) ([]model.ResourcePoint, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT timestamp, type, name, COALESCE(device, ''), value FROM metrics_resource WHERE type = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp", metricType, from.UTC().Format(time.RFC3339), to.UTC().Format(time.RFC3339))
+func (r *Metrics) QueryResources(ctx context.Context, metricType string, from, to time.Time, bucketSec int) ([]model.ResourceBucket, error) {
+	fromStr := from.UTC().Format(time.RFC3339)
+	toStr := to.UTC().Format(time.RFC3339)
+	if metricType == "disk" {
+		if bucketSec > 0 {
+			rows, err := r.db.QueryContext(ctx, `SELECT strftime('%Y-%m-%dT%H:%M:%SZ', CAST(strftime('%s', ts)/? AS INTEGER)*?,'unixepoch') AS bucket, AVG(pct), MIN(pct), MAX(pct) FROM (
+				SELECT timestamp AS ts, SUM(CASE WHEN name='used' THEN value ELSE 0 END)*100.0 / NULLIF(SUM(CASE WHEN name='total' THEN value ELSE 0 END),0) AS pct
+				FROM metrics_resource WHERE type='disk' AND timestamp BETWEEN ? AND ? GROUP BY timestamp
+			) GROUP BY bucket ORDER BY bucket`, bucketSec, bucketSec, fromStr, toStr)
+			if err != nil {
+				return nil, err
+			}
+			defer rows.Close()
+			return scanResourceBuckets(rows)
+		}
+		rows, err := r.db.QueryContext(ctx, `SELECT timestamp, SUM(CASE WHEN name='used' THEN value ELSE 0 END)*100.0 / NULLIF(SUM(CASE WHEN name='total' THEN value ELSE 0 END),0) AS pct, SUM(CASE WHEN name='used' THEN value ELSE 0 END)*100.0 / NULLIF(SUM(CASE WHEN name='total' THEN value ELSE 0 END),0), SUM(CASE WHEN name='used' THEN value ELSE 0 END)*100.0 / NULLIF(SUM(CASE WHEN name='total' THEN value ELSE 0 END),0)
+			FROM metrics_resource WHERE type='disk' AND timestamp BETWEEN ? AND ? GROUP BY timestamp ORDER BY timestamp`, fromStr, toStr)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		return scanResourceBuckets(rows)
+	}
+	if bucketSec > 0 {
+		rows, err := r.db.QueryContext(ctx, `SELECT strftime('%Y-%m-%dT%H:%M:%SZ', CAST(strftime('%s',timestamp)/? AS INTEGER)*?,'unixepoch') AS bucket, AVG(value), MIN(value), MAX(value)
+			FROM metrics_resource WHERE type=? AND name='percent' AND timestamp BETWEEN ? AND ? GROUP BY bucket ORDER BY bucket`, bucketSec, bucketSec, metricType, fromStr, toStr)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		return scanResourceBuckets(rows)
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT timestamp, value, value, value FROM metrics_resource WHERE type=? AND name='percent' AND timestamp BETWEEN ? AND ? ORDER BY timestamp`, metricType, fromStr, toStr)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
-	return scanResourcePoints(rows)
+	return scanResourceBuckets(rows)
 }
 
 func (r *Metrics) QueryLatestProcesses(ctx context.Context) ([]model.ProcessPoint, error) {
@@ -136,24 +166,46 @@ func (r *Metrics) QueryLatestContainers(ctx context.Context) ([]model.ContainerP
 	return scanContainerPoints(rows)
 }
 
-func (r *Metrics) QueryProcessHistory(ctx context.Context, pid int, from, to time.Time) ([]model.ProcessPoint, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT timestamp, cpu, ram, ram_bytes FROM metrics_process WHERE pid = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp", pid, from.UTC().Format(time.RFC3339), to.UTC().Format(time.RFC3339))
+func (r *Metrics) QueryProcessHistory(ctx context.Context, pid int, from, to time.Time, bucketSec int) ([]model.ProcessBucket, error) {
+	fromStr := from.UTC().Format(time.RFC3339)
+	toStr := to.UTC().Format(time.RFC3339)
+	if bucketSec > 0 {
+		rows, err := r.db.QueryContext(ctx, `SELECT strftime('%Y-%m-%dT%H:%M:%SZ', CAST(strftime('%s',timestamp)/? AS INTEGER)*?,'unixepoch') AS bucket,
+			AVG(cpu), MIN(cpu), MAX(cpu), AVG(ram), MIN(ram), MAX(ram), CAST(AVG(ram_bytes) AS INTEGER), MIN(ram_bytes), MAX(ram_bytes)
+			FROM metrics_process WHERE pid=? AND timestamp BETWEEN ? AND ? GROUP BY bucket ORDER BY bucket`, bucketSec, bucketSec, pid, fromStr, toStr)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		return scanProcessBuckets(rows)
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT timestamp, cpu, cpu, cpu, ram, ram, ram, ram_bytes, ram_bytes, ram_bytes FROM metrics_process WHERE pid=? AND timestamp BETWEEN ? AND ? ORDER BY timestamp`, pid, fromStr, toStr)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
-	return scanProcessHistoryPoints(rows)
+	return scanProcessBuckets(rows)
 }
 
-func (r *Metrics) QueryContainerHistory(ctx context.Context, name string, from, to time.Time) ([]model.ContainerPoint, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT timestamp, cpu, ram, ram_bytes FROM metrics_container WHERE name = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp", name, from.UTC().Format(time.RFC3339), to.UTC().Format(time.RFC3339))
+func (r *Metrics) QueryContainerHistory(ctx context.Context, name string, from, to time.Time, bucketSec int) ([]model.ContainerBucket, error) {
+	fromStr := from.UTC().Format(time.RFC3339)
+	toStr := to.UTC().Format(time.RFC3339)
+	if bucketSec > 0 {
+		rows, err := r.db.QueryContext(ctx, `SELECT strftime('%Y-%m-%dT%H:%M:%SZ', CAST(strftime('%s',timestamp)/? AS INTEGER)*?,'unixepoch') AS bucket,
+			AVG(cpu), MIN(cpu), MAX(cpu), AVG(ram), MIN(ram), MAX(ram), CAST(AVG(ram_bytes) AS INTEGER), MIN(ram_bytes), MAX(ram_bytes)
+			FROM metrics_container WHERE name=? AND timestamp BETWEEN ? AND ? GROUP BY bucket ORDER BY bucket`, bucketSec, bucketSec, name, fromStr, toStr)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		return scanContainerBuckets(rows)
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT timestamp, cpu, cpu, cpu, ram, ram, ram, ram_bytes, ram_bytes, ram_bytes FROM metrics_container WHERE name=? AND timestamp BETWEEN ? AND ? ORDER BY timestamp`, name, fromStr, toStr)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
-	return scanContainerHistoryPoints(rows)
+	return scanContainerBuckets(rows)
 }
 
 func (r *Metrics) PurgeOlderThan(ctx context.Context, age time.Duration) error {
@@ -259,28 +311,40 @@ func scanContainerPoints(rows *sql.Rows) ([]model.ContainerPoint, error) {
 	return points, rows.Err()
 }
 
-func scanProcessHistoryPoints(rows *sql.Rows) ([]model.ProcessPoint, error) {
-	var points []model.ProcessPoint
+func scanResourceBuckets(rows *sql.Rows) ([]model.ResourceBucket, error) {
+	var buckets []model.ResourceBucket
 	for rows.Next() {
-		var p model.ProcessPoint
-		if err := rows.Scan(&p.Timestamp, &p.CPU, &p.RAM, &p.RAMBytes); err != nil {
+		var b model.ResourceBucket
+		if err := rows.Scan(&b.Timestamp, &b.Avg, &b.Min, &b.Max); err != nil {
 			return nil, err
 		}
-		points = append(points, p)
+		buckets = append(buckets, b)
 	}
-	return points, rows.Err()
+	return buckets, rows.Err()
 }
 
-func scanContainerHistoryPoints(rows *sql.Rows) ([]model.ContainerPoint, error) {
-	var points []model.ContainerPoint
+func scanProcessBuckets(rows *sql.Rows) ([]model.ProcessBucket, error) {
+	var buckets []model.ProcessBucket
 	for rows.Next() {
-		var p model.ContainerPoint
-		if err := rows.Scan(&p.Timestamp, &p.CPU, &p.RAM, &p.RAMBytes); err != nil {
+		var b model.ProcessBucket
+		if err := rows.Scan(&b.Timestamp, &b.CPUAvg, &b.CPUMin, &b.CPUMax, &b.RAMAvg, &b.RAMMin, &b.RAMMax, &b.RAMBytesAvg, &b.RAMBytesMin, &b.RAMBytesMax); err != nil {
 			return nil, err
 		}
-		points = append(points, p)
+		buckets = append(buckets, b)
 	}
-	return points, rows.Err()
+	return buckets, rows.Err()
+}
+
+func scanContainerBuckets(rows *sql.Rows) ([]model.ContainerBucket, error) {
+	var buckets []model.ContainerBucket
+	for rows.Next() {
+		var b model.ContainerBucket
+		if err := rows.Scan(&b.Timestamp, &b.CPUAvg, &b.CPUMin, &b.CPUMax, &b.RAMAvg, &b.RAMMin, &b.RAMMax, &b.RAMBytesAvg, &b.RAMBytesMin, &b.RAMBytesMax); err != nil {
+			return nil, err
+		}
+		buckets = append(buckets, b)
+	}
+	return buckets, rows.Err()
 }
 
 var _ MetricsStorage = (*Metrics)(nil)
