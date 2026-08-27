@@ -9,27 +9,219 @@ import (
 )
 
 func (s *Metrics) QueryChartData(ctx context.Context, metricType string, from, to time.Time) (model.ChartData, error) {
-	points, err := s.r.QueryResources(ctx, metricType, from, to)
+	bucketSec, _ := bucketForPeriod(to.Sub(from))
+	buckets, err := s.r.QueryResources(ctx, metricType, from, to, bucketSec)
 	if err != nil {
 		return model.ChartData{}, err
 	}
-	return downsampleChartData(buildChartData(metricType, points), chartThreshold(to.Sub(from))), nil
+	if bucketSec > 0 {
+		return buildResourceBucketedChartData(metricType, buckets), nil
+	}
+	if metricType == "disk" {
+		labels := make([]string, len(buckets))
+		series := make([]*float64, len(buckets))
+		for i, b := range buckets {
+			labels[i] = b.Timestamp
+			v := b.Avg
+			series[i] = &v
+		}
+		return model.ChartData{Labels: labels, Series: []model.ChartSeries{{Label: "Disk %", Data: series}}}, nil
+	}
+	points := make([]model.ResourcePoint, len(buckets))
+	for i, b := range buckets {
+		points[i] = model.ResourcePoint{Timestamp: b.Timestamp, Type: metricType, Name: "percent", Value: b.Avg}
+	}
+	return buildChartData(metricType, points), nil
 }
 
 func (s *Metrics) QueryProcessChart(ctx context.Context, pid int, param string, from, to time.Time) (model.ChartData, error) {
-	points, err := s.r.QueryProcessHistory(ctx, pid, from, to)
+	bucketSec, _ := bucketForPeriod(to.Sub(from))
+	buckets, err := s.r.QueryProcessHistory(ctx, pid, from, to, bucketSec)
 	if err != nil {
 		return model.ChartData{}, err
 	}
-	return downsampleChartData(buildProcessChartData(param, points), chartThreshold(to.Sub(from))), nil
+	if bucketSec > 0 {
+		return buildProcessBucketedChartData(param, buckets), nil
+	}
+	labels := make([]string, len(buckets))
+	values := make([]*float64, len(buckets))
+	for i, b := range buckets {
+		labels[i] = b.Timestamp
+		var v float64
+		switch param {
+		case "cpu":
+			v = b.CPUAvg
+		case "ram":
+			v = b.RAMAvg
+		case "ram_bytes":
+			v = ramBytesToMiB(b.RAMBytesAvg)
+		}
+		val := v
+		values[i] = &val
+	}
+	return buildSeriesChartData(param, labels, values), nil
 }
 
 func (s *Metrics) QueryContainerChart(ctx context.Context, name, param string, from, to time.Time) (model.ChartData, error) {
-	points, err := s.r.QueryContainerHistory(ctx, name, from, to)
+	bucketSec, _ := bucketForPeriod(to.Sub(from))
+	buckets, err := s.r.QueryContainerHistory(ctx, name, from, to, bucketSec)
 	if err != nil {
 		return model.ChartData{}, err
 	}
-	return downsampleChartData(buildContainerChartData(param, points), chartThreshold(to.Sub(from))), nil
+	if bucketSec > 0 {
+		return buildContainerBucketedChartData(param, buckets), nil
+	}
+	labels := make([]string, len(buckets))
+	values := make([]*float64, len(buckets))
+	for i, b := range buckets {
+		labels[i] = b.Timestamp
+		var v float64
+		switch param {
+		case "cpu":
+			v = b.CPUAvg
+		case "ram":
+			v = b.RAMAvg
+		case "ram_bytes":
+			v = ramBytesToMiB(b.RAMBytesAvg)
+		}
+		val := v
+		values[i] = &val
+	}
+	return buildSeriesChartData(param, labels, values), nil
+}
+
+func bucketForPeriod(period time.Duration) (int, int) {
+	if period <= 0 {
+		return 0, 0
+	}
+	const target = 400
+	bucket := niceBucket(period / target)
+	threshold := int(period / bucket)
+	if threshold < 3 {
+		return 0, 0
+	}
+	return int(bucket.Seconds()), threshold
+}
+
+func niceBucket(d time.Duration) time.Duration {
+	steps := []time.Duration{
+		30 * time.Second, time.Minute, 5 * time.Minute, 15 * time.Minute, 30 * time.Minute,
+		time.Hour, 2 * time.Hour, 4 * time.Hour, 6 * time.Hour, 12 * time.Hour, 24 * time.Hour,
+	}
+	for _, s := range steps {
+		if s >= d {
+			return s
+		}
+	}
+	return 24 * time.Hour
+}
+
+func buildResourceBucketedChartData(metricType string, buckets []model.ResourceBucket) model.ChartData {
+	labels := make([]string, len(buckets))
+	avg := make([]*float64, len(buckets))
+	mn := make([]*float64, len(buckets))
+	mx := make([]*float64, len(buckets))
+	for i, b := range buckets {
+		labels[i] = b.Timestamp
+		a := b.Avg
+		mi := b.Min
+		ma := b.Max
+		avg[i] = &a
+		mn[i] = &mi
+		mx[i] = &ma
+	}
+	base := chartLabel(metricType)
+	if metricType == "disk" {
+		base = "Disk %"
+	}
+	return model.ChartData{
+		Labels: labels,
+		Series: []model.ChartSeries{
+			{Label: base, Data: avg},
+			{Label: base + " min", Data: mn},
+			{Label: base + " max", Data: mx},
+		},
+	}
+}
+
+func buildProcessBucketedChartData(param string, buckets []model.ProcessBucket) model.ChartData {
+	labels := make([]string, len(buckets))
+	avg := make([]*float64, len(buckets))
+	mn := make([]*float64, len(buckets))
+	mx := make([]*float64, len(buckets))
+	for i, b := range buckets {
+		labels[i] = b.Timestamp
+		var a, mi, ma float64
+		switch param {
+		case "cpu":
+			a = b.CPUAvg
+			mi = b.CPUMin
+			ma = b.CPUMax
+		case "ram":
+			a = b.RAMAvg
+			mi = b.RAMMin
+			ma = b.RAMMax
+		case "ram_bytes":
+			a = ramBytesToMiB(b.RAMBytesAvg)
+			mi = ramBytesToMiB(b.RAMBytesMin)
+			ma = ramBytesToMiB(b.RAMBytesMax)
+		}
+		av := a
+		miv := mi
+		mav := ma
+		avg[i] = &av
+		mn[i] = &miv
+		mx[i] = &mav
+	}
+	base := chartLabel(param)
+	return model.ChartData{
+		Labels: labels,
+		Series: []model.ChartSeries{
+			{Label: base, Data: avg},
+			{Label: base + " min", Data: mn},
+			{Label: base + " max", Data: mx},
+		},
+	}
+}
+
+func buildContainerBucketedChartData(param string, buckets []model.ContainerBucket) model.ChartData {
+	labels := make([]string, len(buckets))
+	avg := make([]*float64, len(buckets))
+	mn := make([]*float64, len(buckets))
+	mx := make([]*float64, len(buckets))
+	for i, b := range buckets {
+		labels[i] = b.Timestamp
+		var a, mi, ma float64
+		switch param {
+		case "cpu":
+			a = b.CPUAvg
+			mi = b.CPUMin
+			ma = b.CPUMax
+		case "ram":
+			a = b.RAMAvg
+			mi = b.RAMMin
+			ma = b.RAMMax
+		case "ram_bytes":
+			a = ramBytesToMiB(b.RAMBytesAvg)
+			mi = ramBytesToMiB(b.RAMBytesMin)
+			ma = ramBytesToMiB(b.RAMBytesMax)
+		}
+		av := a
+		miv := mi
+		mav := ma
+		avg[i] = &av
+		mn[i] = &miv
+		mx[i] = &mav
+	}
+	base := chartLabel(param)
+	return model.ChartData{
+		Labels: labels,
+		Series: []model.ChartSeries{
+			{Label: base, Data: avg},
+			{Label: base + " min", Data: mn},
+			{Label: base + " max", Data: mx},
+		},
+	}
 }
 
 func buildChartData(metricType string, points []model.ResourcePoint) model.ChartData {

@@ -13,18 +13,22 @@ import (
 var _ storage.MetricsStorage = (*mockMetricsStorage)(nil)
 
 type mockMetricsStorage struct {
-	processHistoryErr   error
-	containerHistoryErr error
-	purgeErr            error
-	latestProcesses     []model.ProcessPoint
-	latestContainers    []model.ContainerPoint
-	processResults      []model.ProcessPoint
-	containerResults    []model.ContainerPoint
-	resources           []model.ResourcePoint
-	processHistory      []model.ProcessPoint
-	containerHistory    []model.ContainerPoint
-	searchProcessCall   bool
-	searchContainer     bool
+	processHistoryErr      error
+	containerHistoryErr    error
+	resourceErr            error
+	purgeErr               error
+	latestProcesses        []model.ProcessPoint
+	latestContainers       []model.ContainerPoint
+	processResults         []model.ProcessPoint
+	containerResults       []model.ContainerPoint
+	resourceBuckets        []model.ResourceBucket
+	processBuckets         []model.ProcessBucket
+	containerBuckets       []model.ContainerBucket
+	lastResourceBucketSec  int
+	lastProcessBucketSec   int
+	lastContainerBucketSec int
+	searchProcessCall      bool
+	searchContainer        bool
 }
 
 func (m *mockMetricsStorage) InsertResourceBatch(_ context.Context, _ []model.ResourcePoint) error {
@@ -36,8 +40,9 @@ func (m *mockMetricsStorage) InsertProcessBatch(_ context.Context, _ []model.Pro
 func (m *mockMetricsStorage) InsertContainerBatch(_ context.Context, _ []model.ContainerPoint) error {
 	return nil
 }
-func (m *mockMetricsStorage) QueryResources(_ context.Context, _ string, _, _ time.Time) ([]model.ResourcePoint, error) {
-	return m.resources, nil
+func (m *mockMetricsStorage) QueryResources(_ context.Context, _ string, _, _ time.Time, bucketSec int) ([]model.ResourceBucket, error) {
+	m.lastResourceBucketSec = bucketSec
+	return m.resourceBuckets, m.resourceErr
 }
 func (m *mockMetricsStorage) QueryLatestProcesses(_ context.Context) ([]model.ProcessPoint, error) {
 	return m.latestProcesses, nil
@@ -49,11 +54,13 @@ func (m *mockMetricsStorage) QueryLatestContainers(_ context.Context) ([]model.C
 func (m *mockMetricsStorage) PurgeOlderThan(_ context.Context, _ time.Duration) error {
 	return m.purgeErr
 }
-func (m *mockMetricsStorage) QueryProcessHistory(_ context.Context, _ int, _, _ time.Time) ([]model.ProcessPoint, error) {
-	return m.processHistory, m.processHistoryErr
+func (m *mockMetricsStorage) QueryProcessHistory(_ context.Context, _ int, _, _ time.Time, bucketSec int) ([]model.ProcessBucket, error) {
+	m.lastProcessBucketSec = bucketSec
+	return m.processBuckets, m.processHistoryErr
 }
-func (m *mockMetricsStorage) QueryContainerHistory(_ context.Context, _ string, _, _ time.Time) ([]model.ContainerPoint, error) {
-	return m.containerHistory, m.containerHistoryErr
+func (m *mockMetricsStorage) QueryContainerHistory(_ context.Context, _ string, _, _ time.Time, bucketSec int) ([]model.ContainerBucket, error) {
+	m.lastContainerBucketSec = bucketSec
+	return m.containerBuckets, m.containerHistoryErr
 }
 func (m *mockMetricsStorage) SearchResource(_ context.Context, _ string) ([]model.ResourcePoint, error) {
 	return nil, nil
@@ -438,26 +445,85 @@ func TestBuildContainerChartData(t *testing.T) {
 
 func ptr(v float64) *float64 { return &v }
 
-func TestQueryProcessChart(t *testing.T) {
-	points := []model.ProcessPoint{{Timestamp: "2026-08-02T10:00:00Z", CPU: 42.5}}
+func TestQueryChartData_BucketedVsRaw(t *testing.T) {
+	now := time.Now()
+	buckets := []model.ResourceBucket{
+		{Timestamp: "2026-08-02T10:00:00Z", Avg: 10, Min: 5, Max: 20},
+		{Timestamp: "2026-08-02T10:05:00Z", Avg: 15, Min: 10, Max: 25},
+	}
+	rawBuckets := []model.ResourceBucket{
+		{Timestamp: "2026-08-02T10:00:00Z", Avg: 10, Min: 10, Max: 10},
+	}
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
+		name       string
+		period     time.Duration
+		buckets    []model.ResourceBucket
+		wantSeries int
+		wantLabels int
+		wantErr    bool
+	}{
+		{name: "bucketed 24h yields 3 series", period: 24 * time.Hour, buckets: buckets, wantSeries: 3, wantLabels: 2},
+		{name: "raw 1m yields 1 series", period: time.Minute, buckets: rawBuckets, wantSeries: 1, wantLabels: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := &mockMetricsStorage{resourceBuckets: tt.buckets}
+			s := NewMetrics(mock, nil, 7*24*time.Hour)
+			from := now.Add(-tt.period)
+			to := now
+			got, err := s.QueryChartData(context.Background(), "cpu", from, to)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Len(t, got.Labels, tt.wantLabels)
+			assert.Len(t, got.Series, tt.wantSeries)
+			if tt.wantSeries == 3 {
+				for i := range got.Labels {
+					assert.LessOrEqual(t, *got.Series[1].Data[i], *got.Series[0].Data[i])
+					assert.LessOrEqual(t, *got.Series[0].Data[i], *got.Series[2].Data[i])
+				}
+			}
+		})
+	}
+}
+
+func TestQueryProcessChart_EnvelopeAndError(t *testing.T) {
+	now := time.Now()
+	buckets := []model.ProcessBucket{
+		{Timestamp: "2026-08-02T10:00:00Z", CPUAvg: 10, CPUMin: 5, CPUMax: 20, RAMAvg: 30, RAMMin: 25, RAMMax: 35, RAMBytesAvg: 104857600, RAMBytesMin: 52428800, RAMBytesMax: 157286400},
+	}
+
+	tests := []struct { //nolint:govet
 		name    string
 		mock    *mockMetricsStorage
 		param   string
+		period  time.Duration
 		wantLen int
 		wantErr bool
 	}{
 		{
-			name:    "success",
-			mock:    &mockMetricsStorage{processHistory: points},
+			name:    "bucketed success",
+			mock:    &mockMetricsStorage{processBuckets: buckets},
 			param:   "cpu",
+			period:  24 * time.Hour,
+			wantLen: 1,
+		},
+		{
+			name:    "raw success",
+			mock:    &mockMetricsStorage{processBuckets: []model.ProcessBucket{{Timestamp: "2026-08-02T10:00:00Z", CPUAvg: 10, CPUMin: 10, CPUMax: 10}}},
+			param:   "cpu",
+			period:  time.Minute,
 			wantLen: 1,
 		},
 		{
 			name:    "storage error",
 			mock:    &mockMetricsStorage{processHistoryErr: context.DeadlineExceeded},
 			param:   "cpu",
+			period:  24 * time.Hour,
 			wantErr: true,
 		},
 	}
@@ -465,40 +531,52 @@ func TestQueryProcessChart(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := NewMetrics(tt.mock, nil, 7*24*time.Hour)
-
-			got, err := s.QueryProcessChart(context.Background(), 1, tt.param, time.Now().Add(-time.Hour), time.Now())
-
+			from := now.Add(-tt.period)
+			got, err := s.QueryProcessChart(context.Background(), 1, tt.param, from, now)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
 			assert.NoError(t, err)
 			assert.Len(t, got.Labels, tt.wantLen)
-			assert.Equal(t, "CPU %", got.Series[0].Label)
+			if tt.period >= 24*time.Hour {
+				assert.Len(t, got.Series, 3)
+				assert.Equal(t, "CPU %", got.Series[0].Label)
+				assert.LessOrEqual(t, *got.Series[1].Data[0], *got.Series[0].Data[0])
+				assert.LessOrEqual(t, *got.Series[0].Data[0], *got.Series[2].Data[0])
+			} else {
+				assert.Len(t, got.Series, 1)
+			}
 		})
 	}
 }
 
-func TestQueryContainerChart(t *testing.T) {
-	points := []model.ContainerPoint{{Timestamp: "2026-08-02T10:00:00Z", RAMBytes: 104857600}}
+func TestQueryContainerChart_EnvelopeAndError(t *testing.T) {
+	now := time.Now()
+	buckets := []model.ContainerBucket{
+		{Timestamp: "2026-08-02T10:00:00Z", RAMBytesAvg: 104857600, RAMBytesMin: 52428800, RAMBytesMax: 157286400},
+	}
 
-	tests := []struct {
+	tests := []struct { //nolint:govet
 		name    string
 		mock    *mockMetricsStorage
 		param   string
+		period  time.Duration
 		wantLen int
 		wantErr bool
 	}{
 		{
-			name:    "success",
-			mock:    &mockMetricsStorage{containerHistory: points},
+			name:    "bucketed ram_bytes envelope",
+			mock:    &mockMetricsStorage{containerBuckets: buckets},
 			param:   "ram_bytes",
+			period:  24 * time.Hour,
 			wantLen: 1,
 		},
 		{
 			name:    "storage error",
 			mock:    &mockMetricsStorage{containerHistoryErr: context.DeadlineExceeded},
 			param:   "ram_bytes",
+			period:  24 * time.Hour,
 			wantErr: true,
 		},
 	}
@@ -506,18 +584,53 @@ func TestQueryContainerChart(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := NewMetrics(tt.mock, nil, 7*24*time.Hour)
-
-			got, err := s.QueryContainerChart(context.Background(), "web", tt.param, time.Now().Add(-time.Hour), time.Now())
-
+			from := now.Add(-tt.period)
+			got, err := s.QueryContainerChart(context.Background(), "web", tt.param, from, now)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
 			assert.NoError(t, err)
 			assert.Len(t, got.Labels, tt.wantLen)
-			assert.Equal(t, "RAM Used (MB)", got.Series[0].Label)
+			if tt.period >= 24*time.Hour {
+				assert.Len(t, got.Series, 3)
+				assert.Equal(t, "RAM Used (MB)", got.Series[0].Label)
+				for i := range got.Labels {
+					assert.LessOrEqual(t, *got.Series[1].Data[i], *got.Series[0].Data[i])
+					assert.LessOrEqual(t, *got.Series[0].Data[i], *got.Series[2].Data[i])
+				}
+			}
 		})
 	}
+}
+
+func TestBuildResourceBucketedChartData_Envelope(t *testing.T) {
+	buckets := []model.ResourceBucket{
+		{Timestamp: "2026-08-02T10:00:00Z", Avg: 10, Min: 5, Max: 15},
+		{Timestamp: "2026-08-02T10:05:00Z", Avg: 20, Min: 18, Max: 25},
+	}
+	got := buildResourceBucketedChartData("cpu", buckets)
+	assert.Len(t, got.Labels, 2)
+	assert.Len(t, got.Series, 3)
+	assert.Equal(t, "CPU %", got.Series[0].Label)
+	assert.Equal(t, "CPU % min", got.Series[1].Label)
+	assert.Equal(t, "CPU % max", got.Series[2].Label)
+	for i := range got.Labels {
+		assert.LessOrEqual(t, *got.Series[1].Data[i], *got.Series[0].Data[i])
+		assert.LessOrEqual(t, *got.Series[0].Data[i], *got.Series[2].Data[i])
+	}
+}
+
+func TestBuildProcessBucketed_RAMBytesRounding(t *testing.T) {
+	// 104857600 = 100 MiB, 104857600*2 =200 MiB
+	buckets := []model.ProcessBucket{
+		{Timestamp: "2026-08-02T10:00:00Z", RAMBytesAvg: 104857600, RAMBytesMin: 52428800, RAMBytesMax: 157286400},
+	}
+	got := buildProcessBucketedChartData("ram_bytes", buckets)
+	assert.Len(t, got.Series, 3)
+	assert.InDelta(t, 100.0, *got.Series[0].Data[0], 0.01)
+	assert.InDelta(t, 50.0, *got.Series[1].Data[0], 0.01)
+	assert.InDelta(t, 150.0, *got.Series[2].Data[0], 0.01)
 }
 
 func TestMaintenanceTick(t *testing.T) {
